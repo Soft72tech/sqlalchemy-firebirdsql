@@ -4,16 +4,14 @@
 
 import importlib
 from typing import Type
-from sqlalchemy.engine import URL, Dialect, default
-from sqlalchemy.sql import sqltypes
 
 from sqlalchemy.connectors.asyncio import (
     AsyncAdapt_dbapi_connection,
     AsyncAdapt_dbapi_cursor,
     AsyncAdapt_dbapi_ss_cursor,
 )
-from sqlalchemy.engine import reflection
-from sqlalchemy.sql import compiler
+from sqlalchemy.engine import URL, Dialect, default, reflection
+from sqlalchemy.sql import compiler, sqltypes
 from sqlalchemy.util.concurrency import await_
 
 
@@ -582,7 +580,9 @@ class AsyncAdapt_firebirdsql_dbapi:
         self.paramstyle = "qmark"
 
     def connect(self, *args, **kwargs):
-        creator_fn = kwargs.pop("async_creator_fn", self.firebirdsql.aio.connect)
+        creator_fn = kwargs.pop(
+            "async_creator_fn", self.firebirdsql.aio.connect
+        )
 
         return AsyncAdapt_firebirdsql_connection(
             self, await_(creator_fn(*args, **kwargs))
@@ -602,7 +602,9 @@ class FirebirdDialectAsync_firebirdsql(FirebirdDialect_firebirdsql):
 
     @classmethod
     def import_dbapi(cls):
-        return AsyncAdapt_firebirdsql_dbapi(importlib.import_module("firebirdsql.aio"))
+        return AsyncAdapt_firebirdsql_dbapi(
+            importlib.import_module("firebirdsql.aio")
+        )
 
 
 dialect = FirebirdDialect_firebirdsql
