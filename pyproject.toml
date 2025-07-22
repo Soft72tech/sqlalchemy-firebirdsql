@@ -10,8 +10,8 @@ dependencies = [
     "pytest>=8.4.1",
 ]
 
-# [tool.setuptools.package-dir]
-# sqlalchemy_firebirdsql = "sqlalchemy_firebirdsql"
+[tool.setuptools.package-dir]
+sqlalchemy_firebirdsql = "sqlalchemy_firebirdsql"
 
 [project.entry-points]
 sqlalchemy.dialects = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"

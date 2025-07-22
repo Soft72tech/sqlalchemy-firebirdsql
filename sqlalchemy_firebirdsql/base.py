@@ -294,6 +294,8 @@ class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
         "without",
         "year",
     }
+    illegal_initial_characters = {"_", "$"}
+
     # TODO: implement
 
 

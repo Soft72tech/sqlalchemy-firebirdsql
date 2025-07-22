@@ -14,6 +14,7 @@ from sqlalchemy_firebirdsql.base import FirebirdDialect, FirebirdExecutionContex
 
 class FirebirdDialect_firebirdsql(FirebirdDialect):
     driver = "firebirdsql"
+    supports_statement_cache = True
 
     @classmethod
     def import_dbapi(cls):
