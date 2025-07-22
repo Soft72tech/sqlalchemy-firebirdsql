@@ -1,0 +1,29 @@
+volumes:
+  red-db:
+
+services:
+  pytest:
+    pull_policy: never
+    build:
+      dockerfile: Dockerfile
+    command: [pytest, -vvv, --db firebird]
+    tty: true
+    depends_on:
+      firebird:
+        condition: service_started
+    volumes:
+      - .:/project
+    environment:
+      DATABASE_URL: "firebird://SYSDBA:root@firebird:3050//db/test.fdb"
+
+  firebird:
+    image: firebirdsql/firebird:5.0.3
+    restart: always
+    ports:
+      - 3050:3050
+    environment:
+      - FIREBIRD_ROOT_PASSWORD=root
+      - FIREBIRD_USER=root
+      - FIREBIRD_PASSWORD=root
+      - FIREBIRD_DATABASE=db.fdb
+      - FIREBIRD_DATABASE_DEFAULT_CHARSET=UTF8
