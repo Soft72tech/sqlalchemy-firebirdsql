@@ -512,6 +512,10 @@ class FirebirdDialect(default.DefaultDialect):
         # Implemented at the driver level
         raise NotImplementedError()
 
+    def create_connect_args(self, url):
+        opts = url.translate_connect_args(username="user")
+        return ([], opts)
+
     # TODO: isolation level
     # TODO: check connection behaviors
     # TODO: readonly and deferrable

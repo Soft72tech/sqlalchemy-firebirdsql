@@ -6,17 +6,16 @@ services:
     pull_policy: never
     build:
       dockerfile: Dockerfile
-    command: [pytest, -vvv, --db firebird]
+    command: "pytest --db firebird"
     tty: true
     depends_on:
       firebird:
         condition: service_started
     volumes:
       - .:/project
-    environment:
-      DATABASE_URL: "firebird://SYSDBA:root@firebird:3050//db/test.fdb"
 
   firebird:
+    container_name: firebird
     image: firebirdsql/firebird:5.0.3
     restart: always
     ports:
