@@ -1,8 +1,8 @@
 {
-  description = "Desu";
+  description = "sqlalchemy-firebirdsql";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/c87b95e25065c028d31a94f06a62927d18763fdf";
   };
 
   outputs = {
@@ -16,7 +16,7 @@
   in {
     devShells.x86_64-linux.default = pkgs.mkShell {
       buildInputs = with pkgs; [
-        python312
+        python313
         uv
         ruff
         rainfrog
