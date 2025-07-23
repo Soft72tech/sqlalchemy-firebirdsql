@@ -74,7 +74,7 @@ class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
 
 
 class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
-    reserved_words = {
+    reserved_keywords = {
         "add",
         "admin",
         "all",
@@ -96,9 +96,9 @@ class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
         "case",
         "cast",
         "char",
-        "char_length",
         "character",
         "character_length",
+        "char_length",
         "check",
         "close",
         "collate",
@@ -240,8 +240,8 @@ class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
         "right",
         "rollback",
         "row",
-        "row_count",
         "rows",
+        "row_count",
         "savepoint",
         "scroll",
         "second",
@@ -279,12 +279,12 @@ class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
         "using",
         "value",
         "values",
-        "var_pop",
-        "var_samp",
         "varbinary",
         "varchar",
         "variable",
         "varying",
+        "var_pop",
+        "var_samp",
         "view",
         "when",
         "where",
@@ -294,9 +294,7 @@ class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
         "without",
         "year",
     }
-    illegal_initial_characters = compiler.ILLEGAL_INITIAL_CHARACTERS.union(
-        ["_"]
-    )
+    illegal_initial_characters = compiler.ILLEGAL_INITIAL_CHARACTERS.union(["_"])
 
     # TODO: implement
 
@@ -545,7 +543,5 @@ class FirebirdDialect(default.DefaultDialect):
         """
         # Do not need ORDER BY
         return [
-            self.normalize_name(row.generator_name)
-            for row in connection.exec_driver_sql(sequences_query)
+            self.normalize_name(row.generator_name) for row in connection.exec_driver_sql(sequences_query)
         ]
-
