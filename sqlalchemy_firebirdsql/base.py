@@ -77,7 +77,7 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
         # TODO: refactor
         if (
             column.primary_key
-            and column is column.table._autoincrement_column
+            and column.autoincrement is True
             and not has_identity
             and (column.default is None or (isinstance(column.default, Sequence) and column.default.optional))
             and self.dialect.supports_identity_columns
@@ -113,7 +113,7 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
         if index.unique:
             text.append("UNIQUE")
 
-        if index.dialect_options["firebird.firebirdsql"]["descending"] is True:
+        if index.dialect_options["firebird.firebirdsql"].get("descending"):
             text.append("DESCENDING")
 
         # if create.if_not_exists:
@@ -127,7 +127,7 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
             )
         )
 
-        whereclause = index.dialect_options["firebird.firebirdsql"]["where"]
+        whereclause = index.dialect_options["firebird.firebirdsql"].get("where")
         if whereclause is not None:
             where_compiled = self.sql_compiler.process(whereclause, include_table=False, literal_binds=True)
             text.append(f"WHERE {where_compiled}")
@@ -135,9 +135,9 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
 
     def post_create_table(self, table):
         table_options = []
-        fb_options = table.dialect_options["firebird.firebirdsql"]
-        if "on_commit" in fb_options:
-            table_options.append(f"ON COMMIT {fb_options['on_commit']}")
+        on_commit = table.dialect_options["firebird.firebirdsql"].get("on_commit")
+        if on_commit:
+            table_options.append(f"ON COMMIT {on_commit}")
         return "\n " + ",\n ".join(table_options)
 
     def visit_computed_column(self, generated, **kw):
