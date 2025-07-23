@@ -1,8 +1,5 @@
-volumes:
-  red-db:
-
 services:
-  pytest:
+  tests:
     pull_policy: never
     build:
       dockerfile: Dockerfile

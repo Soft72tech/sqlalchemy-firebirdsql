@@ -294,7 +294,9 @@ class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
         "without",
         "year",
     }
-    illegal_initial_characters = compiler.ILLEGAL_INITIAL_CHARACTERS.union({"_"})
+    illegal_initial_characters = compiler.ILLEGAL_INITIAL_CHARACTERS.union(
+        ["_"]
+    )
 
     # TODO: implement
 
@@ -521,3 +523,29 @@ class FirebirdDialect(default.DefaultDialect):
     # TODO: isolation level
     # TODO: check connection behaviors
     # TODO: readonly and deferrable
+
+    @reflection.cache
+    def has_table(self, connection, table_name, schema=None, **kw):
+        has_table_query = """
+            SELECT 1 AS has_table
+            FROM rdb$relations
+            WHERE rdb$relation_name = ?
+        """
+        tablename = self.denormalize_name(table_name)
+
+        c = connection.exec_driver_sql(has_table_query, (tablename,))
+        return c.first() is not None
+
+    @reflection.cache
+    def get_sequence_names(self, connection, schema=None, **kw):
+        sequences_query = """
+            SELECT TRIM(rdb$generator_name) AS generator_name
+            FROM rdb$generators
+            WHERE COALESCE(rdb$system_flag, 0) = 0
+        """
+        # Do not need ORDER BY
+        return [
+            self.normalize_name(row.generator_name)
+            for row in connection.exec_driver_sql(sequences_query)
+        ]
+

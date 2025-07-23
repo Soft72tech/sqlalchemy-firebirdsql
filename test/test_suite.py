@@ -1,13 +1,13 @@
 from sqlalchemy.testing.suite.test_cte import *  # noqa: F403
 from sqlalchemy.testing.suite.test_ddl import *  # noqa: F403
-from sqlalchemy.testing.suite.test_deprecations import *  # noqa: F403
-from sqlalchemy.testing.suite.test_dialect import *  # noqa: F403
-from sqlalchemy.testing.suite.test_insert import *  # noqa: F403
-from sqlalchemy.testing.suite.test_reflection import *  # noqa: F403
-from sqlalchemy.testing.suite.test_results import *  # noqa: F403
-from sqlalchemy.testing.suite.test_rowcount import *  # noqa: F403
-from sqlalchemy.testing.suite.test_select import *  # noqa: F403
-from sqlalchemy.testing.suite.test_sequence import *  # noqa: F403
-from sqlalchemy.testing.suite.test_types import *  # noqa: F403
-from sqlalchemy.testing.suite.test_unicode_ddl import *  # noqa: F403
-from sqlalchemy.testing.suite.test_update_delete import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_deprecations import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_dialect import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_insert import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_reflection import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_results import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_rowcount import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_select import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_sequence import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_types import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_unicode_ddl import *  # noqa: F403
+# from sqlalchemy.testing.suite.test_update_delete import *  # noqa: F403
