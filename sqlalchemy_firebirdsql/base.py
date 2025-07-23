@@ -615,6 +615,8 @@ class FirebirdDialect(default.DefaultDialect):
         sqltypes.Time: sqltypes.TIME,
     }
 
+    construct_arguments = [(reflection.sa_schema.Table, {"on_commit": None})]
+
     @classmethod
     def import_dbapi(cls):
         # Implemented at the driver level
