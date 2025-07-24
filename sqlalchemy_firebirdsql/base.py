@@ -6,6 +6,7 @@ from inspect import trace
 from sqlalchemy import Sequence, TypeDecorator, exc
 from sqlalchemy.engine import default, reflection
 from sqlalchemy.sql import compiler, sqltypes
+from sqlalchemy_firebirdsql import types as fbtypes
 
 
 class FirebirdCompiler(compiler.SQLCompiler):
@@ -416,129 +417,6 @@ class FirebirdExecutionContext(default.DefaultExecutionContext):
     ...
 
 
-# TODO: clean up redunant types
-# TODO: check render_bind_cast options
-
-
-class FirebirdString(sqltypes.String):
-    pass
-
-
-class FirebirdCHARACTER(sqltypes.CHAR):
-    __visit_name__ = "CHARACTER"
-
-
-class FirebirdBINARY(sqltypes.BINARY):
-    # charset OCTETS
-    pass
-
-
-class FirebirdNCHAR(sqltypes.NCHAR):
-    # charset ISO8859_1
-    pass
-
-
-class FirebirdVARCHAR(sqltypes.VARCHAR):
-    pass
-
-
-class FirebirdVARBINARY(sqltypes.VARBINARY):
-    # charset OCTETS
-    pass
-
-
-class FirebirdNVARCHAR(sqltypes.NVARCHAR):
-    # charset ISO8859_1
-    pass
-
-
-class FirebirdNumeric(sqltypes.Numeric):
-    pass
-
-
-class FirebirdFLOAT(sqltypes.FLOAT):
-    pass
-
-
-class FirebirdDOUBLE_PRECISION(sqltypes.DOUBLE_PRECISION):
-    pass
-
-
-class FirebirdDECFLOAT(FirebirdNumeric):
-    __visit_name__ = "DECFLOAT"
-
-
-class FirebirdREAL(sqltypes.REAL):
-    pass
-
-
-class FirebirdDECIMAL(sqltypes.DECIMAL):
-    pass
-
-
-class FirebirdDATE(sqltypes.DATE):
-    pass
-
-
-class FirebirdTIME(sqltypes.TIME):
-    pass
-
-
-class FirebirdTIMESTAMP(sqltypes.TIMESTAMP):
-    pass
-
-
-class FirebirdInteger(sqltypes.Integer):
-    render_bind_cast = True
-
-
-class FirebirdSMALLINT(sqltypes.SMALLINT):
-    pass
-
-
-class FirebirdINTEGER(sqltypes.INTEGER):
-    pass
-
-
-class FirebirdBIGINT(sqltypes.BIGINT):
-    pass
-
-
-class FirebirdINT128(sqltypes.Integer):
-    __visit_name__ = "INT128"
-
-
-class FirebirdBOOLEAN(sqltypes.BOOLEAN):
-    pass
-
-
-class FirebirdLargeBinary(sqltypes.LargeBinary):
-    pass
-
-
-class FirebirdBLOB(sqltypes.BLOB):
-    # SUB_TYPE BINARY
-    pass
-
-
-class FirebirdTEXT(sqltypes.TEXT):
-    # SUB_TYPE TEXT
-    # SEGMENT SIZE {}
-    __visit_name__ = "BLOB"
-
-
-class FirebirdNumericInterval(sqltypes.Numeric):
-    # NUMERIC(18,9)
-    pass
-
-
-# TODO datetime
-# TODO json
-# TODO uuid
-# TODO interval ?
-# TODO: array
-
-
 class FirebirdDialect(default.DefaultDialect):
     name = "firebird"
 
@@ -583,16 +461,16 @@ class FirebirdDialect(default.DefaultDialect):
         "bigint": sqltypes.BIGINT,
         "blob": sqltypes.BLOB,
         "boolean": sqltypes.BOOLEAN,
-        "character": FirebirdCHARACTER,
+        "character": fbtypes.FirebirdCHARACTER,
         "char": sqltypes.CHAR,
         "date": sqltypes.DATE,
-        "decfloat": FirebirdDECFLOAT,
+        "decfloat": fbtypes.FirebirdDECFLOAT,
         "decimal": sqltypes.DECIMAL,
         "double precision": sqltypes.DOUBLE_PRECISION,
         "float": sqltypes.FLOAT,
         "integer": sqltypes.INTEGER,
         "int": sqltypes.INT,
-        "int128": FirebirdINT128,
+        "int128": fbtypes.FirebirdINT128,
         "numeric": sqltypes.NUMERIC,
         "real": sqltypes.REAL,
         "smallint": sqltypes.SMALLINT,
@@ -600,11 +478,11 @@ class FirebirdDialect(default.DefaultDialect):
         "time with time zone": sqltypes.TIME(timezone=True),
         "timestamp": sqltypes.TIMESTAMP,
         "timestamp with time zone": sqltypes.TIMESTAMP(timezone=True),
-        "varbinary": FirebirdVARBINARY,
-        "binary varying": FirebirdVARBINARY,
-        "varchar": FirebirdVARCHAR,
-        "char varying": FirebirdVARCHAR,
-        "character varying": FirebirdVARCHAR,
+        "varbinary": fbtypes.FirebirdVARBINARY,
+        "binary varying": fbtypes.FirebirdVARBINARY,
+        "varchar": fbtypes.FirebirdVARCHAR,
+        "char varying": fbtypes.FirebirdVARCHAR,
+        "character varying": fbtypes.FirebirdVARCHAR,
     }
 
     # TODO: all colspecs
