@@ -56,6 +56,11 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
         else:
             dbapi_connection.set_isolation_level(self._isolation_lookup[level])
 
+    def connect(self, *args, **kwargs):
+        connection = super().connect(*args, **kwargs)
+        connection.set_autocommit(True)
+        return connection
+
 
 class AsyncAdapt_firebirdsql_ss_cursor(AsyncAdapt_dbapi_ss_cursor):
     __slots__ = ()

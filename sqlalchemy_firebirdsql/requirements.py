@@ -5,4 +5,4 @@ from sqlalchemy.testing import exclusions
 class Requirements(SuiteRequirements):
     @property
     def autocommit(self):
-        return exclusions.closed()
+        return exclusions.open()
