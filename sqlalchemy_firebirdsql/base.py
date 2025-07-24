@@ -503,7 +503,6 @@ class FirebirdDialect(default.DefaultDialect):
 
     def create_connect_args(self, url):
         opts = url.translate_connect_args(username="user")
-        __import__('pdb').set_trace()
         return ([], opts)
 
     # TODO: isolation level
