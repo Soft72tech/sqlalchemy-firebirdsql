@@ -1,0 +1,20 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Docker: Launch Firebird",
+            "type": "shell",
+            "command": "docker ps --filter 'name=firebird' --filter 'status=running' --format '{{.Names}}' | grep -q firebird || docker compose up -d firebird"
+        },
+        {
+            "label": "Pytest: Run Tests",
+            "type": "shell",
+            "dependsOn": [
+                "Docker: Launch Firebird"
+            ],
+            "command": "uv run pytest -vvv",
+        }
+    ]
+}
