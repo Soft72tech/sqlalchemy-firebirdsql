@@ -1,6 +1,7 @@
 {
     "conventionalCommits.scopes": [
         "dialect",
-        "ddl"
+        "ddl",
+        "sqlcompiler"
     ]
 }

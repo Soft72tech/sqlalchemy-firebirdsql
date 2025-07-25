@@ -62,7 +62,45 @@ class FirebirdCompiler(compiler.SQLCompiler):
     def visit_length_func(self, fn, **kw):
         return f"CHAR_LENGTH{self.function_argspec(fn, **kw)}"
 
-    # TODO: check limit/offset fetch clause
+    def limit_clause(self, select, **kw):
+        return self.fetch_clause(select, **kw)
+
+    def fetch_clause(
+        self,
+        select,
+        fetch_clause=None,
+        require_offset=False,
+        use_literal_execute_for_simple_int=False,
+        **kw,
+    ):
+        """
+        Generate Firebird-specific pagination using ROWS m TO n syntax.
+
+        Supports:
+        - offset + limit: ROWS offset+1 TO offset+limit
+        - offset only: ROWS offset+1 TO max big int
+        - limit only: ROWS 1 TO limit
+        """
+
+        if fetch_clause is None:
+            if select._limit_clause is not None:
+                fetch_clause = select._limit_clause
+            else:
+                fetch_clause = select._fetch_clause
+        offset_clause = select._offset_clause
+
+        if offset_clause is not None and fetch_clause is not None:
+            fetch_str = self.process(fetch_clause, **kw)
+            offset_str = self.process(offset_clause, **kw)
+            return f"\n ROWS {offset_str} + 1 TO {offset_str} + {fetch_str}"
+        elif offset_clause is not None:
+            offset_str = self.process(offset_clause, **kw)
+            return f"\n ROWS {offset_str} + 1 TO 9223372036854775807"
+        elif fetch_clause is not None:
+            fetch_str = self.process(fetch_clause, **kw)
+            return f"\n ROWS 1 TO {fetch_str}"
+        return ""
+
     # TODO: check other possible visit_* methods with docs
 
 
@@ -128,6 +166,8 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
                 preparer.format_table(index.table, use_schema=include_table_schema),
             )
         )
+
+        # TODO: expressions/computed fields
 
         whereclause = index.dialect_options["firebird.firebirdsql"].get("where")
         if whereclause is not None:
