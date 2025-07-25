@@ -11,3 +11,8 @@ from sqlalchemy.testing.suite.test_cte import *  # noqa: F403
 from sqlalchemy.testing.suite.test_types import *  # noqa: F403
 # from sqlalchemy.testing.suite.test_unicode_ddl import *  # noqa: F403
 # from sqlalchemy.testing.suite.test_update_delete import *  # noqa: F403
+
+
+class BooleanTest:
+    # ISSUE: test data contain `value` column name that is reserved keyword
+    pass
