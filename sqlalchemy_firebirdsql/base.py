@@ -2,9 +2,17 @@
 # TODO: connection characreristic
 
 
-from sqlalchemy import Sequence, TypeDecorator, exc
+from typing import Any, List, Optional, cast
+
+from sqlalchemy import Connection, Sequence, TypeDecorator, exc, util
 from sqlalchemy.engine import default, reflection
-from sqlalchemy.sql import compiler, sqltypes
+from sqlalchemy.engine.interfaces import (
+    ReflectedCheckConstraint,
+    ReflectedIndex,
+    ReflectedPrimaryKeyConstraint,
+    ReflectedUniqueConstraint,
+)
+from sqlalchemy.sql import compiler, expression, sqltypes
 
 from sqlalchemy_firebirdsql import types as fbtypes
 
@@ -168,29 +176,19 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
         )
 
         if index.expressions is None:
-            raise exc.CompileError(
-                "CREATE INDEX requires at least one column or expression."
-            )
+            raise exc.CompileError("CREATE INDEX requires at least one column or expression.")
 
-        first_expression = (
-            index.expressions[0]
-            if len(index.expressions) > 0
-            else index.expressions
-        )
+        first_expression = index.expressions[0] if len(index.expressions) > 0 else index.expressions
 
         if isinstance(first_expression, expression.ColumnClause):
             expression_str = ", ".join(
-                    self.sql_compiler.process(
-                        expr, include_table=False, literal_binds=True
-                    )
-                    for expr in index.expressions
-                )
+                self.sql_compiler.process(expr, include_table=False, literal_binds=True)
+                for expr in index.expressions
+            )
             text.append(f"({expression_str})")
         else:
             expression_str = "||".join(
-                self.sql_compiler.process(
-                    expr, include_table=False, literal_binds=True
-                )
+                self.sql_compiler.process(expr, include_table=False, literal_binds=True)
                 for expr in index.expressions
             )
             text.append(f"COMPUTED BY ({expression_str})")
@@ -576,7 +574,9 @@ class FirebirdDialect(default.DefaultDialect):
     # TODO: readonly and deferrable
 
     @reflection.cache
-    def has_table(self, connection, table_name, schema=None, **kw):
+    def has_table(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> bool:
         has_table_query = """
             SELECT 1 AS has_table
             FROM rdb$relations
@@ -584,23 +584,59 @@ class FirebirdDialect(default.DefaultDialect):
         """
         tablename = self.denormalize_name(table_name)
 
-        c = connection.exec_driver_sql(has_table_query, (tablename,))
-        return c.first() is not None
+        return connection.exec_driver_sql(has_table_query, (tablename,)).first() is not None
 
     @reflection.cache
-    def get_sequence_names(self, connection, schema=None, **kw):
+    def get_sequence_names(
+        self, connection: Connection, schema: Optional[str] = None, **kw: Any
+    ) -> List[str]:
         sequences_query = """
             SELECT TRIM(rdb$generator_name) AS generator_name
             FROM rdb$generators
             WHERE COALESCE(rdb$system_flag, 0) = 0
         """
+
         # Do not need ORDER BY
         return [
-            self.normalize_name(row.generator_name) for row in connection.exec_driver_sql(sequences_query)
+            cast(str, self.normalize_name(row.generator_name))
+            for row in connection.exec_driver_sql(sequences_query)
         ]
 
     @reflection.cache
-    def get_unique_constraints(self, connection, table_name, schema=None, **kw):
+    def get_check_constraints(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> List[ReflectedCheckConstraint]:
+        check_constraints_query = """
+            SELECT TRIM(rc.rdb$constraint_name) AS cname,
+                   TRIM(SUBSTRING(tr.rdb$trigger_source FROM 8 FOR CHAR_LENGTH(tr.rdb$trigger_source) - 8)) AS sqltext
+            FROM rdb$relation_constraints rc
+                 JOIN rdb$check_constraints ck
+                   ON ck.rdb$constraint_name = rc.rdb$constraint_name
+                 JOIN rdb$triggers tr
+                   ON tr.rdb$trigger_name = ck.rdb$trigger_name AND
+                      tr.rdb$trigger_type = 1 /* BEFORE UPDATE */
+            WHERE rc.rdb$constraint_type = 'CHECK' AND
+                  rc.rdb$relation_name = ?
+            ORDER BY 1
+        """
+        tablename = self.denormalize_name(table_name)
+        cursor = connection.exec_driver_sql(check_constraints_query, (tablename,))
+
+        if result := [
+            ReflectedCheckConstraint(name=self.normalize_name(row.cname), sqltext=row.sqltext)
+            for row in cursor
+        ]:
+            return result
+
+        if not self.has_table(connection, table_name, schema):
+            raise exc.NoSuchTableError(table_name)
+
+        return reflection.ReflectionDefaults.check_constraints()
+
+    @reflection.cache
+    def get_unique_constraints(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> List[ReflectedUniqueConstraint]:
         unique_constraints_query = """
             SELECT TRIM(rc.rdb$constraint_name) AS cname,
                 TRIM(se.rdb$field_name) AS column_name
@@ -616,16 +652,12 @@ class FirebirdDialect(default.DefaultDialect):
         """
         tablename = self.denormalize_name(table_name)
 
-        rows = connection.exec_driver_sql(unique_constraints_query, (tablename,))
-        unique_columns = {}
+        cursor = connection.exec_driver_sql(unique_constraints_query, (tablename,))
 
-        for row in rows:
-            column_name = self.normalize_name(row.cname)
-            group = unique_columns.setdefault(column_name, {"name": column_name, "column_names": []})
-            group["column_names"].append(self.normalize_name(row.column_name))
-
-        result = list(unique_columns.values())
-        if result:
+        if result := [
+            ReflectedUniqueConstraint(name=self.normalize_name(row.cname), column_names=[row.column_name])
+            for row in cursor
+        ]:
             return result
 
         if not self.has_table(connection, table_name, schema):
@@ -634,7 +666,9 @@ class FirebirdDialect(default.DefaultDialect):
         return reflection.ReflectionDefaults.unique_constraints()
 
     @reflection.cache
-    def get_pk_constraint(self, connection, table_name, schema=None, **kw):
+    def get_pk_constraint(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> ReflectedPrimaryKeyConstraint:
         pk_query = """
             SELECT TRIM(rc.rdb$constraint_name) AS cname, TRIM(se.rdb$field_name) AS fname
             FROM rdb$relation_constraints rc
@@ -646,15 +680,90 @@ class FirebirdDialect(default.DefaultDialect):
         """
         tablename = self.denormalize_name(table_name)
 
-        c = connection.exec_driver_sql(pk_query, (tablename,))
-        rows = c.fetchall()
-        if rows:
-            return {
-                "constrained_columns": [self.normalize_name(row.fname) for row in rows],
-                "name": self.normalize_name(rows[0].cname),
-            }
+        cursor = connection.exec_driver_sql(pk_query, (tablename,))
+
+        if rows := cursor.fetchall():
+            return ReflectedPrimaryKeyConstraint(
+                constrained_columns=[cast(str, self.normalize_name(row.fname)) for row in rows],
+                name=self.normalize_name(rows[0].cname),
+            )
 
         if not self.has_table(connection, table_name, schema):
             raise exc.NoSuchTableError(table_name)
 
         return reflection.ReflectionDefaults.pk_constraint()
+
+    @reflection.cache
+    def get_indexes(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> List[ReflectedIndex]:
+        condition_source_expr = (
+            "TRIM(SUBSTRING(ix.rdb$condition_source FROM 6 FOR CHAR_LENGTH(ix.rdb$condition_source) - 5))"
+        )
+
+        indexes_query = f"""
+            SELECT TRIM(ix.rdb$index_name) AS index_name,
+                   ix.rdb$unique_flag AS unique_flag,
+                   ix.rdb$index_type AS descending_flag,
+                   TRIM(ic.rdb$field_name) AS field_name,
+                   TRIM(ix.rdb$expression_source) expression_source,
+                   {condition_source_expr} condition_source
+            FROM rdb$indices ix
+                LEFT OUTER JOIN rdb$index_segments ic
+                  ON ic.rdb$index_name = ix.rdb$index_name
+                LEFT OUTER JOIN rdb$relation_constraints rc
+                             ON rc.rdb$index_name = ic.rdb$index_name
+            WHERE ix.rdb$relation_name = :relation_name
+              AND ix.rdb$foreign_key IS NULL
+              AND COALESCE(rc.rdb$constraint_type, '') <> 'PRIMARY KEY'
+            ORDER BY ix.rdb$index_name, ic.rdb$field_position
+        """
+        tablename = self.denormalize_name(table_name)
+
+        # Do not use connection.exec_driver_sql() here.
+        #    During tests we need to commit CREATE INDEX before this query.
+        cursor = connection.execute(expression.text(indexes_query), {"relation_name": tablename})
+
+        indexes = util.defaultdict(dict)
+
+        for row in cursor:
+            indexrec = indexes[row.index_name]
+
+            if "name" not in indexrec:
+                indexrec["name"] = self.normalize_name(row.index_name)
+                indexrec["column_names"] = []
+                indexrec["unique"] = bool(row.unique_flag)
+
+                if row.expression_source is not None:
+                    expr = row.expression_source[1:-1]  # Remove outermost parenthesis added by Firebird
+                    indexrec["expressions"] = expr.split("||")
+
+                indexrec["dialect_options"] = {
+                    "firebird_descending": bool(row.descending_flag),
+                    "firebird_where": row.condition_source,
+                }
+
+            indexrec["column_names"].append(self.normalize_name(row.field_name))
+
+        if result := [ReflectedIndex(**index) for index in indexes.values()]:
+            # Identify which expression elements are columns
+            colqry = """
+                SELECT TRIM(r.rdb$field_name) AS fname
+                FROM rdb$relation_fields r
+                WHERE r.rdb$relation_name = ?
+            """
+
+            colset = {
+                self.normalize_name(row.fname) for row in connection.exec_driver_sql(colqry, (tablename,))
+            }
+
+            for index in result:
+                if expr := index.get("expressions"):
+                    index["column_names"] = [x if self.normalize_name(x) in colset else None for x in expr]
+
+            return result
+
+        if not self.has_table(connection, table_name, schema):
+            raise exc.NoSuchTableError(table_name)
+
+        return reflection.ReflectionDefaults.indexes()
