@@ -167,7 +167,33 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
             )
         )
 
-        # TODO: expressions/computed fields
+        if index.expressions is None:
+            raise exc.CompileError(
+                "CREATE INDEX requires at least one column or expression."
+            )
+
+        first_expression = (
+            index.expressions[0]
+            if len(index.expressions) > 0
+            else index.expressions
+        )
+
+        if isinstance(first_expression, expression.ColumnClause):
+            expression_str = ", ".join(
+                    self.sql_compiler.process(
+                        expr, include_table=False, literal_binds=True
+                    )
+                    for expr in index.expressions
+                )
+            text.append(f"({expression_str})")
+        else:
+            expression_str = "||".join(
+                self.sql_compiler.process(
+                    expr, include_table=False, literal_binds=True
+                )
+                for expr in index.expressions
+            )
+            text.append(f"COMPUTED BY ({expression_str})")
 
         whereclause = index.dialect_options["firebird.firebirdsql"].get("where")
         if whereclause is not None:
@@ -572,3 +598,63 @@ class FirebirdDialect(default.DefaultDialect):
         return [
             self.normalize_name(row.generator_name) for row in connection.exec_driver_sql(sequences_query)
         ]
+
+    @reflection.cache
+    def get_unique_constraints(self, connection, table_name, schema=None, **kw):
+        unique_constraints_query = """
+            SELECT TRIM(rc.rdb$constraint_name) AS cname,
+                TRIM(se.rdb$field_name) AS column_name
+            FROM rdb$index_segments se
+                JOIN rdb$relation_constraints rc
+                    ON rc.rdb$index_name = se.rdb$index_name
+                JOIN rdb$relations r
+                    ON r.rdb$relation_name = rc.rdb$relation_name
+                    AND COALESCE(r.rdb$system_flag, 0) = 0
+            WHERE rc.rdb$constraint_type = 'UNIQUE'
+                AND r.rdb$relation_name = ?
+            ORDER BY rc.rdb$constraint_name, se.rdb$field_position
+        """
+        tablename = self.denormalize_name(table_name)
+
+        rows = connection.exec_driver_sql(unique_constraints_query, (tablename,))
+        unique_columns = {}
+
+        for row in rows:
+            column_name = self.normalize_name(row.cname)
+            group = unique_columns.setdefault(column_name, {"name": column_name, "column_names": []})
+            group["column_names"].append(self.normalize_name(row.column_name))
+
+        result = list(unique_columns.values())
+        if result:
+            return result
+
+        if not self.has_table(connection, table_name, schema):
+            raise exc.NoSuchTableError(table_name)
+
+        return reflection.ReflectionDefaults.unique_constraints()
+
+    @reflection.cache
+    def get_pk_constraint(self, connection, table_name, schema=None, **kw):
+        pk_query = """
+            SELECT TRIM(rc.rdb$constraint_name) AS cname, TRIM(se.rdb$field_name) AS fname
+            FROM rdb$relation_constraints rc
+                JOIN rdb$index_segments se
+                   ON se.rdb$index_name = rc.rdb$index_name
+            WHERE rc.rdb$constraint_type = 'PRIMARY KEY'
+                AND rc.rdb$relation_name = ?
+            ORDER BY se.rdb$field_position
+        """
+        tablename = self.denormalize_name(table_name)
+
+        c = connection.exec_driver_sql(pk_query, (tablename,))
+        rows = c.fetchall()
+        if rows:
+            return {
+                "constrained_columns": [self.normalize_name(row.fname) for row in rows],
+                "name": self.normalize_name(rows[0].cname),
+            }
+
+        if not self.has_table(connection, table_name, schema):
+            raise exc.NoSuchTableError(table_name)
+
+        return reflection.ReflectionDefaults.pk_constraint()
