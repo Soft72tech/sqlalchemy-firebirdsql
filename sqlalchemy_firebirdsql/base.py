@@ -10,6 +10,7 @@ from sqlalchemy.engine.interfaces import (
     ReflectedCheckConstraint,
     ReflectedIndex,
     ReflectedPrimaryKeyConstraint,
+    ReflectedTableComment,
     ReflectedUniqueConstraint,
 )
 from sqlalchemy.sql import compiler, expression, sqltypes
@@ -767,3 +768,19 @@ class FirebirdDialect(default.DefaultDialect):
             raise exc.NoSuchTableError(table_name)
 
         return reflection.ReflectionDefaults.indexes()
+
+    @reflection.cache
+    def get_table_comment(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> ReflectedTableComment:
+        table_comment_query = """
+            SELECT TRIM(rdb$description) AS comment
+            FROM rdb$relations
+            WHERE rdb$relation_name = ?
+        """
+        tablename = self.denormalize_name(table_name)
+
+        if result := connection.exec_driver_sql(table_comment_query, (tablename,)).fetchone():
+            return ReflectedTableComment(text=result[0])
+
+        raise exc.NoSuchTableError(table_name)
