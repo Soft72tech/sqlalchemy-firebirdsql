@@ -92,13 +92,13 @@ class FirebirdCompiler(compiler.SQLCompiler):
         if offset_clause is not None and fetch_clause is not None:
             fetch_str = self.process(fetch_clause, **kw)
             offset_str = self.process(offset_clause, **kw)
-            return f"\n ROWS {offset_str} + 1 TO {offset_str} + {fetch_str}"
+            return f" ROWS {offset_str} + 1 TO {offset_str} + {fetch_str}"
         elif offset_clause is not None:
             offset_str = self.process(offset_clause, **kw)
-            return f"\n ROWS {offset_str} + 1 TO 9223372036854775807"
+            return f" ROWS {offset_str} + 1 TO 9223372036854775807"  # max bigint
         elif fetch_clause is not None:
             fetch_str = self.process(fetch_clause, **kw)
-            return f"\n ROWS 1 TO {fetch_str}"
+            return f" ROWS 1 TO {fetch_str}"
         return ""
 
     # TODO: check other possible visit_* methods with docs
@@ -180,7 +180,7 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
         on_commit = table.dialect_options["firebird.firebirdsql"].get("on_commit")
         if on_commit:
             table_options.append(f"ON COMMIT {on_commit}")
-        return "\n " + ",\n ".join(table_options)
+        return " " + ", ".join(table_options)
 
     def visit_computed_column(self, generated, **kw):
         if generated.persisted is not None:
