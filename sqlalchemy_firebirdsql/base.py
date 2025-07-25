@@ -2,10 +2,10 @@
 # TODO: connection characreristic
 
 
-from inspect import trace
 from sqlalchemy import Sequence, TypeDecorator, exc
 from sqlalchemy.engine import default, reflection
 from sqlalchemy.sql import compiler, sqltypes
+
 from sqlalchemy_firebirdsql import types as fbtypes
 
 
