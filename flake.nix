@@ -19,7 +19,7 @@
         python313
         uv
         ruff
-        rainfrog
+        go-task
       ];
       # greenlet requires libstdc++
       LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath [pkgs.stdenv.cc.cc];

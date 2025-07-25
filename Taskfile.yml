@@ -1,0 +1,32 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  COMPOSE_COMMAND: '{{.COMPOSE_COMMAND| default "podman compose"}}'
+  PYTEST_COMMAND: pytest -vvv --dropfirst --tb=short
+  
+tasks:
+  run-firebird:
+    cmds:
+      - "{{.COMPOSE_COMMAND}} up -d firebird"
+  local-tests:
+    cmds:
+      - task: run-firebird
+      - "uv run {{.PYTEST_COMMAND}} {{.CLI_ARGS}}"
+      - task: clean
+  tests:
+    cmds:
+      - task: run-firebird
+      - cmd: "{{.COMPOSE_COMMAND}} run --rm -ti pytest {{.PYTEST_COMMAND}} --db firebird-5.0-ctr {{.CLI_ARGS}}"
+        ignore_error: true
+      - task: clean
+  clean:
+    cmds:
+      - "{{.COMPOSE_COMMAND}} down -v"
+  firebird-keywords:
+    vars:
+      # not working, database missing rdb$keywords in such execution (why?)
+      ISQL_ARGS: create database \"/var/lib/firebird/data/db.fdb\"; commit; select * from rdb$keywords;
+    cmds:
+      - "echo \"{{.ISQL_ARGS}}\" | {{.COMPOSE_COMMAND}} run --rm -ti firebird isql -u root -p root"

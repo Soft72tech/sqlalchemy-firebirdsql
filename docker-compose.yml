@@ -1,10 +1,10 @@
 services:
-  tests:
+  pytest:
     pull_policy: never
     build:
       dockerfile: Dockerfile
     command: "pytest --dropfirst --tb=short --db=firebird"
-    tty: true
+    # tty: true
     depends_on:
       firebird:
         condition: service_started
