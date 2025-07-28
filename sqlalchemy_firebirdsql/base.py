@@ -12,6 +12,7 @@ from sqlalchemy.engine.interfaces import (
     ReflectedPrimaryKeyConstraint,
     ReflectedTableComment,
     ReflectedUniqueConstraint,
+    DBAPIConnection,
 )
 from sqlalchemy.sql import compiler, expression, sqltypes
 
@@ -132,6 +133,9 @@ class FirebirdDialect(default.DefaultDialect):
     # TODO: isolation level
     # TODO: check connection behaviors
     # TODO: readonly and deferrable
+
+    def do_ping(self, dbapi_connection: DBAPIConnection) -> bool:
+        return dbapi_connection.ping()
 
     @reflection.cache
     def has_table(
