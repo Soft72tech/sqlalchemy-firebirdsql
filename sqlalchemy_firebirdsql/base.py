@@ -88,7 +88,7 @@ class FirebirdDialect(default.DefaultDialect):
         "boolean": sqltypes.BOOLEAN,
         "character": fbtypes.FirebirdCHARACTER,
         "char": sqltypes.CHAR,
-        "date": sqltypes.DATE,
+        "date": fbtypes.FirebirdDATE,
         "decfloat": fbtypes.FirebirdDECFLOAT,
         "decimal": sqltypes.DECIMAL,
         "double precision": sqltypes.DOUBLE_PRECISION,
@@ -115,7 +115,7 @@ class FirebirdDialect(default.DefaultDialect):
         sqltypes.BigInteger: sqltypes.BIGINT,
         sqltypes.BLOB: sqltypes.BLOB,
         sqltypes.DateTime: sqltypes.TIMESTAMP,
-        sqltypes.Date: sqltypes.DATE,  # ?
+        sqltypes.Date: fbtypes.FirebirdDATE,  # ?
         sqltypes.Time: sqltypes.TIME,
     }
 
