@@ -3,7 +3,7 @@ name = "sqlalchemy-firebirdsql"
 version = "0.1.0"
 description = "Firebird dialect for SQLAlchemy based on pyfirebirdsql with async support."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "sqlalchemy>=2.0.41",
     "firebirdsql>=1.4.0",
@@ -13,8 +13,9 @@ dependencies = [
 [tool.setuptools.package-dir]
 sqlalchemy_firebirdsql = "sqlalchemy_firebirdsql"
 
-[project.entry-points]
-sqlalchemy.dialects = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
+[project.entry-points."sqlalchemy.dialects"]
+"firebird.firebirdsql" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
+"firebirdsql" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
 
 [dependency-groups]
 dev = [
