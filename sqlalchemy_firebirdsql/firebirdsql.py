@@ -15,9 +15,10 @@ from sqlalchemy_firebirdsql.base import FirebirdDialect, FirebirdExecutionContex
 
 
 class FirebirdDialect_firebirdsql(FirebirdDialect):
-    driver = "firebirdsql"
-    supports_statement_cache = True
+    driver: str = "firebirdsql"
+    supports_statement_cache: bool = True
 
+    default_isolation_level: IsolationLevel | None = "READ COMMITTED"
     @classmethod
     def import_dbapi(cls):
         return importlib.import_module("firebirdsql")
@@ -54,6 +55,7 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
             dbapi_connection.set_isolation_level(self._isolation_lookup["READ COMMITED"])
 
         else:
+            dbapi_connection.set_autocommit(False)
             dbapi_connection.set_isolation_level(self._isolation_lookup[level])
 
     def connect(self, *args, **kwargs):
