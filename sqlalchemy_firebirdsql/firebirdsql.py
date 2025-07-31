@@ -96,13 +96,14 @@ class AsyncAdapt_firebirdsql_dbapi:
             "ProgrammingError",
             "NotSupportedError",
         ):
-            setattr(self, error, getattr(self.firebirdsql, error))
+            firebird_sync = importlib.import_module("firebirdsql")
+            setattr(self, error, getattr(firebird_sync, error))
 
-        self.firebirdsql_version = getattr(self.firebirdsql, "__version__")
+        self.firebirdsql_version = getattr(firebird_sync, "__version__")
         self.paramstyle = "qmark"
 
     def connect(self, *args, **kwargs):
-        creator_fn = kwargs.pop("async_creator_fn", self.firebirdsql.aio.connect)
+        creator_fn = kwargs.pop("async_creator_fn", self.firebirdsql.connect)
 
         return AsyncAdapt_firebirdsql_connection(self, await_only(creator_fn(*args, **kwargs)))
 
