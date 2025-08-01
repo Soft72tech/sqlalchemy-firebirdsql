@@ -34,3 +34,11 @@ class Requirements(SuiteRequirements):
     @property
     def index_ddl_if_exists(self):
         return exclusions.closed()
+
+    @property
+    def foreign_keys(self):
+        return exclusions.open()
+
+    @property
+    def foreign_keys_reflect_as_index(self):
+        return exclusions.open()

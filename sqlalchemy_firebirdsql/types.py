@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.sql import sqltypes
 
 
@@ -12,19 +13,37 @@ class FirebirdString(sqltypes.String):
 class FirebirdCHARACTER(sqltypes.CHAR):
     __visit_name__ = "CHARACTER"
 
+    def __init__(
+        self, length: Optional[int] = None, collation: Optional[str] = None, charset: Optional[str] = None
+    ):
+        super().__init__(length, collation)
+
+        self.charset = "OCTETS"
+
 
 class FirebirdBINARY(sqltypes.BINARY):
-    # charset OCTETS
-    pass
+    def __init__(self, length: Optional[int] = None, charset: Optional[str] = None):
+        super().__init__(length)
+
+        self.charset = "OCTETS"
 
 
 class FirebirdNCHAR(sqltypes.NCHAR):
-    # charset ISO8859_1
-    pass
+    def __init__(
+        self, length: Optional[int] = None, collation: Optional[str] = None, charset: Optional[str] = None
+    ):
+        super().__init__(length, collation)
+
+        self.charset = "ISO8859_1"
 
 
 class FirebirdVARCHAR(sqltypes.VARCHAR):
-    pass
+    def __init__(
+        self, length: Optional[int] = None, collation: Optional[str] = None, charset: Optional[str] = None
+    ):
+        super().__init__(length, collation)
+
+        self.charset = "OCTETS"
 
 
 class FirebirdVARBINARY(sqltypes.VARBINARY):
@@ -33,8 +52,12 @@ class FirebirdVARBINARY(sqltypes.VARBINARY):
 
 
 class FirebirdNVARCHAR(sqltypes.NVARCHAR):
-    # charset ISO8859_1
-    pass
+    def __init__(
+        self, length: Optional[int] = None, collation: Optional[str] = None, charset: Optional[str] = None
+    ):
+        super().__init__(length, collation)
+
+        self.charset = "ISO8859_1"
 
 
 class FirebirdNumeric(sqltypes.Numeric):
@@ -62,15 +85,15 @@ class FirebirdDECIMAL(sqltypes.DECIMAL):
 
 
 class FirebirdDATE(sqltypes.DATE):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdTIME(sqltypes.TIME):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdTIMESTAMP(sqltypes.TIMESTAMP):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdInteger(sqltypes.Integer):
@@ -110,6 +133,13 @@ class FirebirdTEXT(sqltypes.TEXT):
     # SUB_TYPE TEXT
     # SEGMENT SIZE {}
     __visit_name__ = "BLOB"
+
+    def __init__(
+        self, length: Optional[int] = None, collation: Optional[str] = None, charset: Optional[str] = None
+    ):
+        super().__init__(length, collation)
+
+        self.charset = "ISO8859_1"
 
 
 class FirebirdNumericInterval(sqltypes.Numeric):

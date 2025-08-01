@@ -19,6 +19,7 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
     supports_statement_cache: bool = True
 
     default_isolation_level: IsolationLevel | None = "READ COMMITTED"
+
     @classmethod
     def import_dbapi(cls):
         return importlib.import_module("firebirdsql")
@@ -58,10 +59,16 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
             dbapi_connection.set_autocommit(False)
             dbapi_connection.set_isolation_level(self._isolation_lookup[level])
 
-    def connect(self, *args, **kwargs):
-        connection = super().connect(*args, **kwargs)
-        connection.set_autocommit(True)
-        return connection
+    # def connect(self, *args, **kwargs):
+    #     connection = super().connect(*args, **kwargs)
+    #     # connection.set_autocommit(True)
+    #     return connection
+
+    # def do_commit(self, dbapi_connection: DBAPIConnection):
+    #     if dbapi_connection.is_active():
+    #         dbapi_connection.commit()
+
+    #     return super().do_commit(dbapi_connection)
 
 
 class AsyncAdapt_firebirdsql_ss_cursor(AsyncAdapt_dbapi_ss_cursor):
