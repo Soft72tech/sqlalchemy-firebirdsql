@@ -2,12 +2,16 @@
 # TODO: connection characreristic
 
 
-from typing import Any, List, Optional, cast
+from typing import Any, Container, List, Optional, cast
 
 from sqlalchemy import Connection, exc, util
 from sqlalchemy.engine import default, reflection
 from sqlalchemy.engine.interfaces import (
     ReflectedCheckConstraint,
+    ReflectedColumn,
+    ReflectedComputed,
+    ReflectedForeignKeyConstraint,
+    ReflectedIdentity,
     ReflectedIndex,
     ReflectedPrimaryKeyConstraint,
     ReflectedTableComment,
@@ -24,9 +28,17 @@ from sqlalchemy_firebirdsql.identifier_preparer import FirebirdIdentifierPrepare
 
 class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
     # TODO: implement
-
     def visit_datetime(self, type_: sqltypes.DateTime, **kw: Any) -> str:
-        return super().visit_datetime(type_, **kw)
+        return super().visit_TIMESTAMP(cast(sqltypes.TIMESTAMP, type_), **kw)
+
+    # def visit_TIMESTAMP(self, type_: sqltypes.TIMESTAMP, **kw: Any) -> str:
+    #     precision = getattr(type_, "precision", None)
+    #     sqltype = "TIMESTAMP{precision} {timezone}".format(
+    #         precision="({})".format(precision) if precision is not None else "",
+    #         timezone="{} TIME ZONE".format("WITH" if type_.timezone else "WITHOUT"),
+    #     )
+
+    #     return sqltype
 
     def visit_boolean(self, type_: sqltypes.Boolean, **kw: Any) -> str:
         return super().visit_boolean(type_, **kw)
@@ -333,6 +345,72 @@ class FirebirdDialect(default.DefaultDialect):
         return reflection.ReflectionDefaults.indexes()
 
     @reflection.cache
+    def get_foreign_keys(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> List[ReflectedForeignKeyConstraint]:
+        fk_query = """
+            SELECT TRIM(rc.rdb$constraint_name) AS cname,
+                   TRIM(cse.rdb$field_name) AS fname,
+                   TRIM(ix2.rdb$relation_name) AS targetrname,
+                   TRIM(se.rdb$field_name) AS targetfname,
+                   TRIM(rfc.rdb$update_rule) AS update_rule,
+                   TRIM(rfc.rdb$delete_rule) AS delete_rule
+            FROM rdb$relation_constraints rc
+                 JOIN rdb$ref_constraints rfc 
+                   ON rfc.rdb$constraint_name = rc.rdb$constraint_name
+                 JOIN rdb$indices ix1 
+                   ON ix1.rdb$index_name = rc.rdb$index_name
+                 JOIN rdb$indices ix2 
+                   ON ix2.rdb$index_name = ix1.rdb$foreign_key
+                 JOIN rdb$index_segments cse 
+                   ON cse.rdb$index_name = ix1.rdb$index_name
+                 JOIN rdb$index_segments se 
+                   ON se.rdb$index_name = ix2.rdb$index_name
+                  AND se.rdb$field_position = cse.rdb$field_position
+            WHERE rc.rdb$constraint_type = 'FOREIGN KEY'
+              AND rc.rdb$relation_name = ?
+            ORDER BY rc.rdb$constraint_name, se.rdb$field_position
+        """
+        tablename = self.denormalize_name(table_name)
+        conn = connection.exec_driver_sql(fk_query, (tablename,))
+        constraints = {}
+
+        for row in conn:
+            name = self.normalize_name(row.cname)
+
+            if not (constraint := constraints.get(name)):
+                constraint = ReflectedForeignKeyConstraint(
+                    name=row.cname,
+                    comment=None,
+                    constrained_columns=[],
+                    # constrained_columns=[cast(str, self.normalize_name(row.fname))],
+                    referred_schema=None,
+                    referred_table=cast(str, self.normalize_name(row.targetrname)),
+                    # referred_columns=[cast(str, self.normalize_name(row.targetfname))],
+                    referred_columns=[],
+                    options={
+                        "onupdate": row.update_rule
+                        if row.update_rule not in ["NO ACTION", "RESCTRICT"]
+                        else {},
+                        "ondelete": row.delete_rule
+                        if row.delete_rule not in ["NO ACTION", "RESCTRICT"]
+                        else {},
+                    },
+                )
+                constraints[name] = constraint
+
+            constraint["constrained_columns"].append(cast(str, self.normalize_name(row.fname)))
+            constraint["referred_columns"].append(cast(str, self.normalize_name(row.targetfname)))
+
+        if result := list(constraints.values()):
+            return result
+
+        if not self.has_table(connection, table_name, schema):
+            raise exc.NoSuchTableError(table_name)
+
+        return reflection.ReflectionDefaults.foreign_keys()
+
+    @reflection.cache
     def get_table_comment(
         self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
     ) -> ReflectedTableComment:
@@ -347,3 +425,155 @@ class FirebirdDialect(default.DefaultDialect):
             return ReflectedTableComment(text=result[0])
 
         raise exc.NoSuchTableError(table_name)
+
+    @reflection.cache
+    def get_table_names(self, connection: Connection, schema: Optional[str] = None, **kw: Any) -> List[str]:
+        table_names_query = """
+            SELECT TRIM(rdb$relation_name) AS relation_name
+            FROM rdb$relations
+            WHERE rdb$relation_type IN (0)
+              AND COALESCE(rdb$system_flag, 0) = 0
+            ORDER BY 1
+        """
+
+        return [
+            cast(str, self.normalize_name(row.relation_name))
+            for row in connection.exec_driver_sql(table_names_query)
+        ]
+
+    @reflection.cache
+    def get_columns(
+        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+    ) -> List[ReflectedColumn]:
+        columns_query = """
+            SELECT TRIM(rf.rdb$field_name) AS field_name,
+                   COALESCE(rf.rdb$null_flag, f.rdb$null_flag) AS null_flag,
+                   TRIM(t.rdb$type_name) AS field_type,
+                   f.rdb$field_length / COALESCE(cs.rdb$bytes_per_character, 1) AS field_length,
+                   f.rdb$field_precision AS field_precision,
+                   f.rdb$field_scale * -1 AS field_scale,
+                   f.rdb$field_sub_type AS field_sub_type,
+                   f.rdb$segment_length AS segment_length,
+                   TRIM(cs.rdb$character_set_name) as character_set_name,
+                   TRIM(cl.rdb$collation_name) as collation_name,
+                   COALESCE(rf.rdb$default_source, f.rdb$default_source) AS default_source,
+                   TRIM(rf.rdb$description) AS description,
+                   f.rdb$computed_source AS computed_source
+                  ,rf.rdb$identity_type AS identity_type,                      
+                   g.rdb$initial_value AS initial_value,                       
+                   g.rdb$generator_increment AS generator_increment            
+            FROM rdb$relation_fields rf
+                 JOIN rdb$fields f
+                   ON f.rdb$field_name = rf.rdb$field_source
+                 JOIN rdb$types t
+                   ON t.rdb$type = f.rdb$field_type 
+                  AND t.rdb$field_name = 'RDB$FIELD_TYPE'
+                 LEFT JOIN rdb$character_sets cs
+                        ON cs.rdb$character_set_id = f.rdb$character_set_id
+                 LEFT JOIN rdb$collations cl
+                        ON cl.rdb$collation_id = rf.rdb$collation_id
+                       AND cl.rdb$character_set_id = cs.rdb$character_set_id
+                 LEFT JOIN rdb$generators g                                    
+                        ON g.rdb$generator_name = rf.rdb$generator_name        
+            WHERE COALESCE(f.rdb$system_flag, 0) = 0
+              AND rf.rdb$relation_name = ?
+            ORDER BY rf.rdb$field_position
+        """
+
+        tablename = self.denormalize_name(table_name)
+        cursor = connection.exec_driver_sql(columns_query, (tablename,))
+
+        binary_charset = "OCTETS"
+        national_charset = "ISO8859_1"
+
+        def match_column_type(row):
+            column_cls = self.ischema_names.get(row.field_type)
+
+            match column_cls:
+                case fbtypes.FirebirdCHARACTER | fbtypes.FirebirdVARCHAR:
+                    match (column_cls, row.character_set_name):
+                        case (fbtypes.FirebirdCHARACTER, binary_charset):
+                            column_type = fbtypes.FirebirdBINARY(
+                                length=row.field_length,
+                                charset=row.character_set_name,
+                            )
+                        case (fbtypes.FirebirdVARCHAR, binary_charset):
+                            column_type = fbtypes.FirebirdVARCHAR(
+                                length=row.field_length,
+                                charset=row.character_set_name,
+                                collation=row.collation_name,
+                            )
+                        case (fbtypes.FirebirdCHARACTER, national_charset):
+                            column_type = fbtypes.FirebirdNCHAR(
+                                length=row.field_length,
+                                charset=row.character_set_name,
+                                collation=row.collation_name,
+                            )
+                        case (fbtypes.FirebirdVARCHAR, national_charset):
+                            column_type = fbtypes.FirebirdNVARCHAR(
+                                length=row.field_length,
+                                charset=row.character_set_name,
+                                collation=row.collation_name,
+                            )
+
+                case sqltypes.NUMERIC:
+                    column_type = fbtypes.FirebirdNumeric(precision=row.field_precision)
+
+                case sqltypes.INT | sqltypes.INTEGER:
+                    match row.field_sub_type:
+                        case 0:
+                            column_type = column_cls()
+                        case 1:
+                            column_type = sqltypes.NUMERIC(
+                                precision=row.field_precision, scale=row.field_scale
+                            )
+                        case _:
+                            column_type = fbtypes.FirebirdDECIMAL(
+                                precision=row.field_precision, scale=row.field_scale
+                            )
+
+                case sqltypes.TIME | sqltypes.TIMESTAMP:
+                    column_type = column_cls(timezone="WITH TIME ZONE" in row.field_type)
+
+                case fbtypes.FirebirdLargeBinary:
+                    match row.field_sub_type:
+                        case 1:
+                            column_type = fbtypes.FirebirdTEXT(
+                                length=row.segment_length,
+                                charset=row.character_set_name,
+                                collation=row.collation_name,
+                            )
+
+                case None:
+                    column_type = sqltypes.NULLTYPE
+
+                case _:
+                    column_type = column_cls()
+
+            return column_type
+
+        if result := [
+            ReflectedColumn(
+                name=cast(str, self.normalize_name(row.field_name)),
+                type=match_column_type(row),
+                nullable=not bool(row.null_flag),
+                default=row.default_source.replace("default", "").replace("DEFAULT", "").trim()
+                if row.default_source
+                else None,
+                autoincrement=row.identity_type is not None,
+                comment=row.description,
+                computed=ReflectedComputed(sqltext=row.computed_source) if row.computed_source else None,
+                identity=ReflectedIdentity(
+                    always=row.identity_type == 0, start=row.initial_value, increment=row.generator_increment
+                )
+                if row.identity_type
+                else None,
+            )
+            for row in cursor
+        ]:
+            return result
+
+        if not self.has_table(connection, table_name, schema):
+            raise exc.NoSuchTableError(table_name)
+
+        return reflection.ReflectionDefaults.columns()
