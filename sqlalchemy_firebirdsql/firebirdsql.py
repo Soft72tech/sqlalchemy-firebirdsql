@@ -9,6 +9,7 @@ from sqlalchemy.connectors.asyncio import (
 )
 from sqlalchemy.engine import URL, Dialect
 from sqlalchemy.engine.interfaces import DBAPIConnection, IsolationLevel
+from sqlalchemy.pool import AsyncAdaptedQueuePool
 from sqlalchemy.util.concurrency import await_only
 
 from sqlalchemy_firebirdsql.base import FirebirdDialect, FirebirdExecutionContext
@@ -86,6 +87,21 @@ class AsyncAdapt_firebirdsql_connection(AsyncAdapt_dbapi_connection):
     _ss_cursor_cls = AsyncAdapt_firebirdsql_ss_cursor
 
     # TODO: isolation level
+
+    def set_autocommit(self, value):
+        self._connection.set_autocommit(value)
+
+
+    def set_isolation_level(self, value):
+        self._connection.set_isolation_level(value)
+
+    @property
+    def isolation_level(self):
+        return self._connection.isolation_level
+
+    @isolation_level.setter
+    def isolation_level(self, value):
+        self._connection.set_isolation_level(value)
 
 
 class AsyncAdapt_firebirdsql_dbapi:
