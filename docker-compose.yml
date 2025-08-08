@@ -3,7 +3,7 @@ services:
     pull_policy: never
     build:
       dockerfile: Dockerfile
-    command: "pytest --dropfirst --tb=short --db=firebird"
+    command: "pytest --dropfirst --tb=short --db=firebird-5.0-ctr"
     # tty: true
     depends_on:
       firebird:

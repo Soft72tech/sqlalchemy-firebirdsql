@@ -43,6 +43,16 @@ class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
     def visit_boolean(self, type_: sqltypes.Boolean, **kw: Any) -> str:
         return super().visit_boolean(type_, **kw)
 
+    def _render_string_type(self, name: str, length: Optional[int], collation: Optional[str]) -> str:
+        return super()._render_string_type(name, length or 255, collation)
+
+    def visit_JSON(self, type_, **kw):
+        return super().visit_BLOB(type_, **kw)
+
+    def visit_ARRAY(self, type_, **kw):
+        __import__('pdb').set_trace()
+        return "BLOB"
+
 
 class FirebirdInspector(reflection.Inspector):
     dialect: "FirebirdDialect"
@@ -143,7 +153,7 @@ class FirebirdDialect(default.DefaultDialect):
         return ([], opts)
 
     # TODO: isolation level
-    # TODO: check connection behaviors
+    # TODO: check connection behaviorsfirerequ
     # TODO: readonly and deferrable
 
     def do_ping(self, dbapi_connection: DBAPIConnection) -> bool:
@@ -151,7 +161,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def has_table(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> bool:
         has_table_query = """
             SELECT 1 AS has_table
@@ -180,7 +194,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_check_constraints(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> List[ReflectedCheckConstraint]:
         check_constraints_query = """
             SELECT TRIM(rc.rdb$constraint_name) AS cname,
@@ -211,7 +229,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_unique_constraints(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> List[ReflectedUniqueConstraint]:
         unique_constraints_query = """
             SELECT TRIM(rc.rdb$constraint_name) AS cname,
@@ -243,7 +265,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_pk_constraint(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> ReflectedPrimaryKeyConstraint:
         pk_query = """
             SELECT TRIM(rc.rdb$constraint_name) AS cname, TRIM(se.rdb$field_name) AS fname
@@ -271,7 +297,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_indexes(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> List[ReflectedIndex]:
         condition_source_expr = (
             "TRIM(SUBSTRING(ix.rdb$condition_source FROM 6 FOR CHAR_LENGTH(ix.rdb$condition_source) - 5))"
@@ -346,7 +376,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_foreign_keys(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> List[ReflectedForeignKeyConstraint]:
         fk_query = """
             SELECT TRIM(rc.rdb$constraint_name) AS cname,
@@ -412,7 +446,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_table_comment(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> ReflectedTableComment:
         table_comment_query = """
             SELECT TRIM(rdb$description) AS comment
@@ -443,7 +481,11 @@ class FirebirdDialect(default.DefaultDialect):
 
     @reflection.cache
     def get_columns(
-        self, connection: Connection, table_name: str, schema: Optional[str] = None, **kw: Any
+        self,
+        connection: Connection,
+        table_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
     ) -> List[ReflectedColumn]:
         columns_query = """
             SELECT TRIM(rf.rdb$field_name) AS field_name,
@@ -564,7 +606,9 @@ class FirebirdDialect(default.DefaultDialect):
                 comment=row.description,
                 computed=ReflectedComputed(sqltext=row.computed_source) if row.computed_source else None,
                 identity=ReflectedIdentity(
-                    always=row.identity_type == 0, start=row.initial_value, increment=row.generator_increment
+                    always=row.identity_type == 0,
+                    start=row.initial_value,
+                    increment=row.generator_increment,
                 )
                 if row.identity_type
                 else None,
