@@ -1,6 +1,6 @@
 [project]
 name = "sqlalchemy-firebirdsql"
-version = "0.1.0"
+version = "0.1.1"
 description = "Firebird dialect for SQLAlchemy based on pyfirebirdsql with async support."
 readme = "README.md"
 requires-python = ">=3.12"
