@@ -3,5 +3,6 @@
         "dialect",
         "ddl",
         "sqlcompiler"
-    ]
+    ],
+    "nixEnvPicker.envFile": "${workspaceFolder}${/}flake.nix"
 }

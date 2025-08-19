@@ -7,6 +7,7 @@ from typing import Any, Container, List, Optional, cast
 from sqlalchemy import Connection, exc, util
 from sqlalchemy.engine import default, reflection
 from sqlalchemy.engine.interfaces import (
+    BindTyping,
     ReflectedCheckConstraint,
     ReflectedColumn,
     ReflectedComputed,
@@ -50,7 +51,6 @@ class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
         return super().visit_BLOB(type_, **kw)
 
     def visit_ARRAY(self, type_, **kw):
-        __import__('pdb').set_trace()
         return "BLOB"
 
 
@@ -103,6 +103,8 @@ class FirebirdDialect(default.DefaultDialect):
     ddl_compiler = FirebirdDDLCompiler
     type_compiler_cls = FirebirdTypeCompiler
     preparer = FirebirdIdentifierPreparer
+
+    bind_typing = BindTyping.RENDER_CASTS
 
     ischema_names = {
         "bigint": sqltypes.BIGINT,
