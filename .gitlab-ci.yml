@@ -13,6 +13,7 @@ before_script:
 
 publish:  
   stage: publish  
+  tags: [docker]
   image: python:${PYTHON_VERSION}
   script:  
     - VERSION=$(git describe --exact-match --tags)  
