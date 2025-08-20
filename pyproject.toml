@@ -32,10 +32,10 @@ sqlalchemy-firebirdsql = { workspace = true }
 
 [tool.ruff]
 src = ["sqlalchemy_firebirdsql"]
-select = ["E", "F", "I"]
+lint.select = ["E", "F", "I"]
 lint.isort.lines-after-imports = 2
 line-length = 110
-ignore = ["E501"] 
+lint.ignore = ["E501"] 
 
 [tool.pyright]
 extraPaths = [

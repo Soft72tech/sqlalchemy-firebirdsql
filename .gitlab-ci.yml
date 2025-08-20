@@ -1,8 +1,7 @@
-stages:  
+stages:
   - lint 
-  - format
-  - test
-  - publish  
+  - test 
+  - publish
 
 variables:  
   PYTHON_VERSION: "3.13"  
@@ -17,7 +16,7 @@ variables:
   UV_LINK_MODE: copy
 
 .base_ruff:
-  stage: build
+  stage: lint
   tags: [docker]
   interruptible: true
   image:
@@ -36,13 +35,14 @@ lint:
       codequality: $CI_PROJECT_DIR/code-quality-report.json
 
 format:
-  stage: format
+  stage: lint
   extends: .base_ruff
   script:
     - ruff format --diff
 
 test:  
-  stage: test  
+  stage: test
+  needs: []
   tags: [docker]
   image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-bookworm-slim
   services:
@@ -60,18 +60,21 @@ test:
           - uv.lock
       paths:
         - ${UV_CACHE_DIR}
+  before_script:
+    - mkdir -p coverage
   script:
     - uv sync --all-extras
-    - uv run pytest  --cov-report=term --cov-report=xml:coverage/coverage.xml --cov=sqlalchemy_firebirdsql
+    - uv run pytest --dropfirst --tb=short --cov-fail-under=0 --maxfail=10000 --continue-on-collection-errors -ra --cov-report=term --cov-report=xml:coverage/coverage.xml --cov=sqlalchemy_firebirdsql --db firebird-5.0-ctr 
   artifacts:
-        reports:
-            coverage_report:
-                coverage_format: cobertura
-                path: 'coverage/coverage.xml'
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/coverage.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
 
 publish:  
-  stage: publish  
+  stage: publish
+  needs: [lint, test]
   tags: [docker]
   image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-bookworm-slim
   script:  
