@@ -1,12 +1,14 @@
-from sqlalchemy.testing import exclusions, only_on, only_if
+import platform
+
+from sqlalchemy import QueuePool, create_engine, util
+from sqlalchemy.testing import asyncio, exclusions, only_on
 from sqlalchemy.testing.requirements import SuiteRequirements
-from sqlalchemy.testing import asyncio
 
 
 class Requirements(SuiteRequirements):
     # Async
 
-    @property   
+    @property
     def async_dialect(self):
         """dialect makes use of await_() to invoke operations on the DBAPI."""
 
@@ -61,7 +63,7 @@ class Requirements(SuiteRequirements):
 
     @property
     def indexes_with_ascdesc(self):
-        return exclusions.open()
+        return exclusions.closed()
 
     @property
     def indexes_with_expressions(self):
@@ -131,7 +133,6 @@ class Requirements(SuiteRequirements):
 
         """
         return exclusions.closed()
-
 
     # DDL
 
@@ -213,10 +214,7 @@ class Requirements(SuiteRequirements):
         # TODO: exclusions should be composable,
         # somehow only_if([x, y]) isn't working here, negation/conjunctions
         # getting confused.
-        return exclusions.only_if(
-            lambda: self.on_update_cascade.enabled
-            or self.deferrable_fks.enabled
-        )
+        return exclusions.only_if(lambda: self.on_update_cascade.enabled or self.deferrable_fks.enabled)
 
     @property
     def queue_pool(self):
@@ -439,9 +437,7 @@ class Requirements(SuiteRequirements):
     @property
     def sane_rowcount_w_returning(self):
         return exclusions.fails_if(
-            lambda config: not (
-                config.db.dialect.supports_sane_rowcount_returning
-            ),
+            lambda config: not (config.db.dialect.supports_sane_rowcount_returning),
             "driver doesn't support 'sane' rowcount when returning is on",
         )
 
@@ -503,8 +499,7 @@ class Requirements(SuiteRequirements):
 
         return exclusions.only_if(
             lambda config: config.db.dialect.insert_executemany_returning,
-            "%(database)s %(does_support)s 'RETURNING of "
-            "multiple rows with INSERT executemany'",
+            "%(database)s %(does_support)s 'RETURNING of multiple rows with INSERT executemany'",
         )
 
     @property
@@ -564,7 +559,6 @@ class Requirements(SuiteRequirements):
         """
         # Firebird does not have a LAST ROWID function.
         return exclusions.closed()
-
 
     @property
     def emulated_lastrowid(self):
@@ -674,10 +668,7 @@ class Requirements(SuiteRequirements):
         as a means of generating new PK values."""
 
         return exclusions.only_if(
-            [
-                lambda config: config.db.dialect.supports_sequences
-                and config.db.dialect.sequences_optional
-            ],
+            [lambda config: config.db.dialect.supports_sequences and config.db.dialect.sequences_optional],
             "no sequence support, or sequences not optional",
         )
 
@@ -690,16 +681,12 @@ class Requirements(SuiteRequirements):
         assumed to work.  This is a new use case brought on by MariaDB 10.3.
 
         """
-        return exclusions.only_if(
-            [lambda config: config.db.dialect.postfetch_lastrowid]
-        )
+        return exclusions.only_if([lambda config: config.db.dialect.postfetch_lastrowid])
 
     @property
     def no_lastrowid_support(self):
         """the opposite of supports_lastrowid"""
-        return exclusions.only_if(
-            [lambda config: not config.db.dialect.postfetch_lastrowid]
-        )
+        return exclusions.only_if([lambda config: not config.db.dialect.postfetch_lastrowid])
 
     @property
     def reflects_pk_names(self):
@@ -716,11 +703,6 @@ class Requirements(SuiteRequirements):
         columns, or at least tables that seem to have no columns."""
 
         return exclusions.closed()
-
-    @property
-    def comment_reflection(self):
-        """Indicates if the database support table comment reflection"""
-        return exclusions.open()
 
     @property
     def comment_reflection_full_unicode(self):
@@ -826,13 +808,6 @@ class Requirements(SuiteRequirements):
         return exclusions.closed()
 
     @property
-    def indexes_with_ascdesc(self):
-        """target database supports CREATE INDEX with per-column ASC/DESC."""
-
-        # Firebird does not support bidirectional indices per column.
-        return exclusions.closed()
-
-    @property
     def reflect_indexes_with_ascdesc(self):
         """target database supports reflecting INDEX with per-column
         ASC/DESC."""
@@ -847,11 +822,6 @@ class Requirements(SuiteRequirements):
         return exclusions.closed()
 
     @property
-    def indexes_with_expressions(self):
-        """target database supports CREATE INDEX against SQL expressions."""
-        return exclusions.open()
-
-    @property
     def reflect_indexes_with_expressions(self):
         """target database supports reflection of indexes with
         SQL expressions."""
@@ -860,11 +830,6 @@ class Requirements(SuiteRequirements):
     @property
     def unique_constraint_reflection(self):
         """target dialect supports reflection of unique constraints"""
-        return exclusions.open()
-
-    @property
-    def check_constraint_reflection(self):
-        """target dialect supports reflection of check constraints"""
         return exclusions.open()
 
     @property
@@ -1079,11 +1044,6 @@ class Requirements(SuiteRequirements):
         return exclusions.open()
 
     @property
-    def autocommit(self):
-        """target dialect supports 'AUTOCOMMIT' as an isolation_level"""
-        return exclusions.closed()
-
-    @property
     def isolation_level(self):
         """target dialect supports general isolation level settings.
 
@@ -1120,9 +1080,7 @@ class Requirements(SuiteRequirements):
         """
         with config.db.connect() as conn:
             try:
-                supported = conn.dialect.get_isolation_level_values(
-                    conn.connection.dbapi_connection
-                )
+                supported = conn.dialect.get_isolation_level_values(conn.connection.dbapi_connection)
             except NotImplementedError:
                 return None
             else:
@@ -1142,9 +1100,7 @@ class Requirements(SuiteRequirements):
         def go(config):
             with config.db.connect() as conn:
                 try:
-                    conn.dialect.get_isolation_level_values(
-                        conn.connection.dbapi_connection
-                    )
+                    conn.dialect.get_isolation_level_values(conn.connection.dbapi_connection)
                 except NotImplementedError:
                     return False
                 else:
@@ -1159,19 +1115,13 @@ class Requirements(SuiteRequirements):
 
         def go(config):
             try:
-                e = create_engine(
-                    config.db.url, isolation_level="READ COMMITTED"
-                )
-            except:
+                e = create_engine(config.db.url, isolation_level="READ COMMITTED")
+            except Exception:
                 return False
             else:
-                return (
-                    e.dialect._on_connect_isolation_level == "READ COMMITTED"
-                )
+                return e.dialect._on_connect_isolation_level == "READ COMMITTED"
 
         return exclusions.only_if(go)
-
-
 
     @property
     def precision_numerics_general(self):
@@ -1512,9 +1462,7 @@ class Requirements(SuiteRequirements):
         requirement as not present.
 
         """
-        return exclusions.skip_if(
-            lambda config: config.options.low_connections
-        )
+        return exclusions.skip_if(lambda config: config.options.low_connections)
 
     @property
     def no_windows(self):
@@ -1575,27 +1523,19 @@ class Requirements(SuiteRequirements):
 
     @property
     def python39(self):
-        return exclusions.only_if(
-            lambda: util.py39, "Python 3.9 or above required"
-        )
+        return exclusions.only_if(lambda: util.py39, "Python 3.9 or above required")
 
     @property
     def python310(self):
-        return exclusions.only_if(
-            lambda: util.py310, "Python 3.10 or above required"
-        )
+        return exclusions.only_if(lambda: util.py310, "Python 3.10 or above required")
 
     @property
     def python311(self):
-        return exclusions.only_if(
-            lambda: util.py311, "Python 3.11 or above required"
-        )
+        return exclusions.only_if(lambda: util.py311, "Python 3.11 or above required")
 
     @property
     def cpython(self):
-        return exclusions.only_if(
-            lambda: util.cpython, "cPython interpreter needed"
-        )
+        return exclusions.only_if(lambda: util.cpython, "cPython interpreter needed")
 
     @property
     def is64bit(self):
@@ -1659,7 +1599,6 @@ class Requirements(SuiteRequirements):
     #         return True
     #     except ImportError:
     #         return False
-
 
     @property
     def computed_columns(self):
@@ -1852,4 +1791,4 @@ class Requirements(SuiteRequirements):
 
     @property
     def partial_indices(self):
-        return exclusions.open() #self.firebird_5_or_higher
+        return exclusions.open()  # self.firebird_5_or_higher

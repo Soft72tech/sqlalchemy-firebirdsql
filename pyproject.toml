@@ -6,8 +6,15 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "sqlalchemy>=2.0.41",
-    "firebirdsql>=1.4.0",
+    "firebirdsql>=1.4.0"
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
     "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "ruff>=0.12.4",
 ]
 
 [tool.setuptools.package-dir]
@@ -17,13 +24,6 @@ sqlalchemy_firebirdsql = "sqlalchemy_firebirdsql"
 "firebird.firebirdsql" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
 "firebirdsql" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
 
-[dependency-groups]
-dev = [
-    "pytest>=8.4.1",
-    "ruff>=0.12.4",
-    "sqlalchemy-firebirdsql",
-]
-
 [tool.uv]
 package = true
 
@@ -32,8 +32,10 @@ sqlalchemy-firebirdsql = { workspace = true }
 
 [tool.ruff]
 src = ["sqlalchemy_firebirdsql"]
+lint.select = ["E", "F", "I"]
 lint.isort.lines-after-imports = 2
 line-length = 110
+lint.ignore = ["E501"] 
 
 [tool.pyright]
 extraPaths = [

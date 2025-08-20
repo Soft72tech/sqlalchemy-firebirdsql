@@ -1,5 +1,7 @@
-stages:  
-  - publish  
+stages:
+  - lint 
+  - test 
+  - publish
 
 variables:  
   PYTHON_VERSION: "3.13"  
@@ -8,17 +10,76 @@ variables:
   UV_PUBLISH_USERNAME: "gitlab-ci-token"  
   UV_PUBLISH_PASSWORD: "${CI_JOB_TOKEN}"  
   UV_INSECURE_HOST: "git.soft72.ru"
+  UV_CACHE_DIR: .uv-cache 
+  UV_SYSTEM_PYTHON: 1
+  UV_COMPILE_BYTECODE: 1
+  UV_LINK_MODE: copy
 
-before_script:  
-  - pip install uv==${UV_VERSION}
+.base_ruff:
+  stage: lint
+  tags: [docker]
+  interruptible: true
+  image:
+    name: ghcr.io/astral-sh/ruff:0.12.9-alpine
+  before_script:
+    - cd $CI_PROJECT_DIR
+    - ruff --version
+
+lint:
+  stage: lint
+  extends: .base_ruff
+  script:
+    - ruff check --output-format=gitlab > code-quality-report.json
+  artifacts:
+    reports:
+      codequality: $CI_PROJECT_DIR/code-quality-report.json
+
+format:
+  stage: lint
+  extends: .base_ruff
+  script:
+    - ruff format --diff
+
+test:  
+  stage: test
+  needs: []
+  tags: [docker]
+  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-bookworm-slim
+  services:
+    - name: firebirdsql/firebird:5.0.3
+      alias: firebird 
+      variables:
+        FIREBIRD_ROOT_PASSWORD: root
+        FIREBIRD_USER: root
+        FIREBIRD_PASSWORD: root
+        FIREBIRD_DATABASE: db.fdb
+        FIREBIRD_DATABASE_DEFAULT_CHARSET: UTF8
+  cache:
+    - key:
+        files:
+          - uv.lock
+      paths:
+        - ${UV_CACHE_DIR}
+  before_script:
+    - mkdir -p coverage
+  script:
+    - uv sync --all-extras
+    - uv run pytest --dropfirst --tb=short --cov-fail-under=0 --maxfail=10000 --continue-on-collection-errors -ra --cov-report=term --cov-report=xml:coverage/coverage.xml --cov=sqlalchemy_firebirdsql --db firebird-5.0-ctr 
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/coverage.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
 
 publish:  
-  stage: publish  
+  stage: publish
+  needs: [lint, test]
   tags: [docker]
-  image: python:${PYTHON_VERSION}
+  image: ghcr.io/astral-sh/uv:${UV_VERSION}-python${PYTHON_VERSION}-bookworm-slim
   script:  
-    - VERSION=$(git describe --exact-match --tags)  
-    - uvx --from=toml-cli toml set --toml-path=pyproject.toml project.version $VERSION  
+    - PROJECT_VERSION=$(git describe --exact-match --tags)  
+    - uvx --from=toml-cli toml set --toml-path=pyproject.toml project.version ${PROJECT_VERSION}  
     - uv build  
     - uv publish dist/*.whl  
   only:

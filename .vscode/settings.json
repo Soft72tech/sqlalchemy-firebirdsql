@@ -4,5 +4,7 @@
         "ddl",
         "sqlcompiler"
     ],
-    "nixEnvPicker.envFile": "${workspaceFolder}${/}flake.nix"
+    "nixEnvPicker.envFile": "${workspaceFolder}${/}flake.nix",
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
 }

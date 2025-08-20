@@ -1,4 +1,5 @@
 from typing import Optional
+
 from sqlalchemy.sql import sqltypes
 
 
@@ -12,11 +13,15 @@ class FirebirdString(sqltypes.String):
     __visit_name__ = "VARCHAR"
 
     def __init__(
-        self, length: Optional[int] = DEFAULT_STRING_LENGTH, collation: Optional[str] = None, charset: Optional[str] = None
+        self,
+        length: Optional[int] = DEFAULT_STRING_LENGTH,
+        collation: Optional[str] = None,
+        charset: Optional[str] = None,
     ):
         super().__init__(length, collation)
 
         self.charset = "ISO8859_1"
+
 
 class FirebirdCHARACTER(sqltypes.CHAR):
     __visit_name__ = "CHARACTER"
@@ -38,7 +43,10 @@ class FirebirdBINARY(sqltypes.BINARY):
 
 class FirebirdNCHAR(sqltypes.NCHAR):
     def __init__(
-        self, length: Optional[int] = DEFAULT_STRING_LENGTH, collation: Optional[str] = None, charset: Optional[str] = None
+        self,
+        length: Optional[int] = DEFAULT_STRING_LENGTH,
+        collation: Optional[str] = None,
+        charset: Optional[str] = None,
     ):
         super().__init__(length, collation)
 
@@ -47,7 +55,10 @@ class FirebirdNCHAR(sqltypes.NCHAR):
 
 class FirebirdVARCHAR(sqltypes.VARCHAR):
     def __init__(
-        self, length: Optional[int] = DEFAULT_STRING_LENGTH, collation: Optional[str] = None, charset: Optional[str] = None
+        self,
+        length: Optional[int] = DEFAULT_STRING_LENGTH,
+        collation: Optional[str] = None,
+        charset: Optional[str] = None,
     ):
         super().__init__(length, collation)
 
@@ -61,7 +72,10 @@ class FirebirdVARBINARY(sqltypes.VARBINARY):
 
 class FirebirdNVARCHAR(sqltypes.NVARCHAR):
     def __init__(
-        self, length: Optional[int] = DEFAULT_STRING_LENGTH, collation: Optional[str] = None, charset: Optional[str] = None
+        self,
+        length: Optional[int] = DEFAULT_STRING_LENGTH,
+        collation: Optional[str] = None,
+        charset: Optional[str] = None,
     ):
         super().__init__(length, collation)
 
@@ -143,7 +157,10 @@ class FirebirdTEXT(sqltypes.TEXT):
     __visit_name__ = "BLOB"
 
     def __init__(
-        self, length: Optional[int] = DEFAULT_STRING_LENGTH, collation: Optional[str] = None, charset: Optional[str] = None
+        self,
+        length: Optional[int] = DEFAULT_STRING_LENGTH,
+        collation: Optional[str] = None,
+        charset: Optional[str] = None,
     ):
         super().__init__(length, collation)
 
