@@ -1,5 +1,6 @@
-from typing import Optional
-
+import json
+from typing import Any, Optional
+from sqlalchemy import BLOB, Dialect
 from sqlalchemy.sql import sqltypes
 
 
@@ -172,8 +173,31 @@ class FirebirdNumericInterval(sqltypes.Numeric):
     pass
 
 
+class FirebirdARRAY(sqltypes.ARRAY):
+    def literal_processor(self, dialect: Dialect):
+        def process(value: list):
+            base_processor = sqltypes.TEXT().literal_processor(dialect)
+            result = base_processor(json.dumps(value))
+            return result
+
+        return process
+
+    def bind_processor(self, dialect: Dialect):
+        def process(value: Optional[list]):
+            return json.dumps(value)
+
+        return process
+
+    def result_processor(self, dialect: Dialect, coltype: Any):
+        def process(value: Optional[bytes]):
+            if value is None:
+                return None
+            return json.loads(value)
+
+        return process
+
+
 # TODO datetime
 # TODO json
 # TODO uuid
 # TODO interval ?
-# TODO: array

@@ -59,10 +59,10 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
             dbapi_connection.set_autocommit(False)
             dbapi_connection.set_isolation_level(self._isolation_lookup[level])
 
-    # def connect(self, *args, **kwargs):
-    #     connection = super().connect(*args, **kwargs)
-    #     # connection.set_autocommit(True)
-    #     return connection
+    def connect(self, *args, **kwargs):
+        connection = super().connect(*args, **kwargs)
+        connection.set_autocommit(True)
+        return connection
 
     # def do_commit(self, dbapi_connection: DBAPIConnection):
     #     if dbapi_connection.is_active():

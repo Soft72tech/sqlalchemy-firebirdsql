@@ -48,7 +48,7 @@ class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
         return super()._render_string_type(name, length or 255, collation)
 
     def visit_JSON(self, type_, **kw):
-        return super().visit_BLOB(type_, **kw)
+        return "BLOB"
 
     def visit_ARRAY(self, type_, **kw):
         return "BLOB"
@@ -137,6 +137,7 @@ class FirebirdDialect(default.DefaultDialect):
     # TODO: all colspecs
     colspecs = {
         sqltypes.BigInteger: sqltypes.BIGINT,
+        sqltypes.ARRAY: fbtypes.FirebirdARRAY,
         sqltypes.BLOB: sqltypes.BLOB,
         sqltypes.DateTime: sqltypes.TIMESTAMP,
         sqltypes.Date: fbtypes.FirebirdDATE,  # ?
