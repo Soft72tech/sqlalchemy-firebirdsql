@@ -2,12 +2,13 @@
 # TODO: connection characreristic
 
 
-from typing import Any, Container, List, Optional, cast
+from typing import Any, List, Optional, cast
 
 from sqlalchemy import Connection, exc, util
 from sqlalchemy.engine import default, reflection
 from sqlalchemy.engine.interfaces import (
     BindTyping,
+    DBAPIConnection,
     ReflectedCheckConstraint,
     ReflectedColumn,
     ReflectedComputed,
@@ -17,7 +18,6 @@ from sqlalchemy.engine.interfaces import (
     ReflectedPrimaryKeyConstraint,
     ReflectedTableComment,
     ReflectedUniqueConstraint,
-    DBAPIConnection,
 )
 from sqlalchemy.sql import compiler, expression, sqltypes
 
@@ -527,8 +527,8 @@ class FirebirdDialect(default.DefaultDialect):
         tablename = self.denormalize_name(table_name)
         cursor = connection.exec_driver_sql(columns_query, (tablename,))
 
-        binary_charset = "OCTETS"
-        national_charset = "ISO8859_1"
+        binary_charset = "OCTETS"  # noqa: F841
+        national_charset = "ISO8859_1"  # noqa: F841
 
         def match_column_type(row):
             column_cls = self.ischema_names.get(row.field_type)
@@ -536,24 +536,24 @@ class FirebirdDialect(default.DefaultDialect):
             match column_cls:
                 case fbtypes.FirebirdCHARACTER | fbtypes.FirebirdVARCHAR:
                     match (column_cls, row.character_set_name):
-                        case (fbtypes.FirebirdCHARACTER, binary_charset):
+                        case (fbtypes.FirebirdCHARACTER, binary_charset):  # noqa: F841
                             column_type = fbtypes.FirebirdBINARY(
                                 length=row.field_length,
                                 charset=row.character_set_name,
                             )
-                        case (fbtypes.FirebirdVARCHAR, binary_charset):
+                        case (fbtypes.FirebirdVARCHAR, binary_charset):  # noqa: F841
                             column_type = fbtypes.FirebirdVARCHAR(
                                 length=row.field_length,
                                 charset=row.character_set_name,
                                 collation=row.collation_name,
                             )
-                        case (fbtypes.FirebirdCHARACTER, national_charset):
+                        case (fbtypes.FirebirdCHARACTER, national_charset):  # noqa: F841
                             column_type = fbtypes.FirebirdNCHAR(
                                 length=row.field_length,
                                 charset=row.character_set_name,
                                 collation=row.collation_name,
                             )
-                        case (fbtypes.FirebirdVARCHAR, national_charset):
+                        case (fbtypes.FirebirdVARCHAR, national_charset):  # noqa: F841
                             column_type = fbtypes.FirebirdNVARCHAR(
                                 length=row.field_length,
                                 charset=row.character_set_name,

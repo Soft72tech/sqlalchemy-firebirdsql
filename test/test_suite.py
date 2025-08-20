@@ -1,18 +1,18 @@
+from sqlalchemy import testing
 from sqlalchemy.testing.suite.test_cte import *  # noqa: F403
 from sqlalchemy.testing.suite.test_ddl import *  # noqa: F403
-
 from sqlalchemy.testing.suite.test_deprecations import *  # noqa: F403
 from sqlalchemy.testing.suite.test_dialect import *  # noqa: F403
 from sqlalchemy.testing.suite.test_insert import *  # noqa: F403
 from sqlalchemy.testing.suite.test_reflection import *  # noqa: F403
 from sqlalchemy.testing.suite.test_results import *  # noqa: F403
 from sqlalchemy.testing.suite.test_rowcount import *  # noqa: F403
+
 # from sqlalchemy.testing.suite.test_select import *  # noqa: F403
 from sqlalchemy.testing.suite.test_sequence import *  # noqa: F403
 from sqlalchemy.testing.suite.test_types import *  # noqa: F403
 from sqlalchemy.testing.suite.test_unicode_ddl import *  # noqa: F403
 from sqlalchemy.testing.suite.test_update_delete import *  # noqa: F403
-#
 
 
 class BooleanTest:
@@ -24,7 +24,8 @@ class FutureTableDDLTest:
     # same as TableDDLTest but issues in parallel running by same test table
     pass
 
-class RowCountTest(RowCountTest):
+
+class RowCountTest(RowCountTest):  # noqa: F405
     @testing.variation("implicit_returning", [True, False])
     @testing.variation(
         "dml",
@@ -33,9 +34,5 @@ class RowCountTest(RowCountTest):
             ("delete", testing.requires.delete_returning),
         ],
     )
-    def test_update_delete_rowcount_return_defaults(
-        self, connection, implicit_returning, dml
-    ):
-        super().test_update_delete_rowcount_return_defaults(
-            connection, implicit_returning, dml, None
-        )
+    def test_update_delete_rowcount_return_defaults(self, connection, implicit_returning, dml):
+        super().test_update_delete_rowcount_return_defaults(connection, implicit_returning, dml, None)
