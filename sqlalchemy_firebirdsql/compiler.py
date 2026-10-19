@@ -1,11 +1,40 @@
-from sqlalchemy.sql import compiler
+from sqlalchemy import literal_column
+from sqlalchemy.sql import compiler, elements, selectable, visitors
 
 
 class FirebirdCompiler(compiler.SQLCompiler):
     def render_bind_cast(self, type_, dbapi_type, sqltext) -> str:
-        return f"""CAST({sqltext}) AS {
-            self.dialect.type_compiler_instance.process(dbapi_type, identifier_preparer=self.preparer)
-        }"""
+        type_sql = self.dialect.type_compiler_instance.process(
+            dbapi_type, identifier_preparer=self.preparer
+        )
+        return f"CAST({sqltext} AS {type_sql})"
+
+    def order_by_clause(self, select, **kw):
+        if not isinstance(select, selectable.CompoundSelect):
+            return super().order_by_clause(select, **kw)
+
+        # Firebird Language Reference, Ordering UNION-ed Sets: ordinal column
+        # positions work even where an unaliased output name is rejected.
+        columns = list(select.selected_columns)
+
+        def ordinal(node):
+            if isinstance(node, (elements.ClauseList, elements.UnaryExpression, elements._label_reference)):
+                return None
+            if isinstance(node, elements._textual_label_reference):
+                for position, column in enumerate(columns, 1):
+                    if node.element in (column.key, column.name):
+                        return literal_column(str(position))
+            elif isinstance(node, elements.ColumnClause):
+                for position, column in enumerate(columns, 1):
+                    if column.shares_lineage(node):
+                        return literal_column(str(position))
+            # Do not substitute inside functions/arithmetic: abs(id) is not
+            # equivalent to abs(1), where 1 is a SELECT-list position.
+            return node
+
+        clauses = visitors.replacement_traverse(select._order_by_clause, {}, ordinal)
+        text = self.process(clauses, **kw)
+        return " ORDER BY " + text if text else ""
 
     def visit_empty_set_expr(self, element_types, **kwargs) -> str:
         return "SELECT 1 FROM rdb$database WHERE 1 != 1"

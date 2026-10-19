@@ -506,6 +506,17 @@ class FirebirdDialect(default.DefaultDialect):
         ]
 
     @reflection.cache
+    def get_view_definition(self, connection: Connection, view_name, schema=None, **kw):
+        row = connection.exec_driver_sql(
+            "SELECT rdb$view_source FROM rdb$relations "
+            "WHERE rdb$relation_name = ? AND rdb$relation_type = 1",
+            (self.denormalize_name(view_name),),
+        ).first()
+        if row is None:
+            raise exc.NoSuchTableError(view_name)
+        return row[0]
+
+    @reflection.cache
     def get_temp_table_names(self, connection: Connection, schema=None, **kw):
         # RDB$RELATION_TYPE 4/5 are connection-/transaction-scoped GTTs.
         return [
