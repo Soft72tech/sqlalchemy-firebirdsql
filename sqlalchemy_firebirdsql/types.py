@@ -12,6 +12,7 @@ DEFAULT_STRING_LENGTH = 255
 
 class FirebirdString(sqltypes.String):
     __visit_name__ = "VARCHAR"
+    render_bind_cast = True
 
     def __init__(
         self,
@@ -55,6 +56,7 @@ class FirebirdNCHAR(sqltypes.NCHAR):
 
 
 class FirebirdVARCHAR(sqltypes.VARCHAR):
+    render_bind_cast = True
     def __init__(
         self,
         length: Optional[int] = DEFAULT_STRING_LENGTH,

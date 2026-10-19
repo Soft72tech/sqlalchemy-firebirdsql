@@ -4,6 +4,10 @@ from sqlalchemy.sql import compiler, elements, selectable, sqltypes, visitors
 
 class FirebirdCompiler(compiler.SQLCompiler):
     def render_bind_cast(self, type_, dbapi_type, sqltext) -> str:
+        if isinstance(dbapi_type, sqltypes.String):
+            # The compared column length is not a bound on a LIKE pattern or
+            # concatenation operand. Text BLOBs avoid silent truncation.
+            return f"CAST({sqltext} AS BLOB SUB_TYPE TEXT)"
         if isinstance(dbapi_type, sqltypes.Numeric) and not isinstance(dbapi_type, sqltypes.Float) and dbapi_type.precision is None:
             # Unconstrained Decimal binds must not acquire NUMERIC's default
             # scale zero. DECFLOAT keeps fractional values and exponents.
