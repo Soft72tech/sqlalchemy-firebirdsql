@@ -1,3 +1,5 @@
+import re
+
 from sqlalchemy import literal_column
 from sqlalchemy.sql import compiler, elements, selectable, sqltypes, visitors
 
@@ -77,6 +79,23 @@ class FirebirdCompiler(compiler.SQLCompiler):
 
         else:
             return f"SUBSTRING({s} FROM {start})"
+
+    def visit_cast(self, cast, **kw):
+        clause = cast.clause
+        if (
+            isinstance(cast.type, sqltypes.Numeric)
+            and not isinstance(cast.type, sqltypes.Float)
+            and (cast.type.precision or 0) > 34
+            and isinstance(clause, elements.ColumnClause)
+            and clause.is_literal
+            and re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", clause.name)
+        ):
+            # Firebird 5 can misconvert a nested 38-digit numeric literal
+            # through DECFLOAT during expression evaluation. Parsing the
+            # same decimal text into the declared exact type avoids it.
+            value = self.render_literal_value(clause.name, sqltypes.String())
+            return f"CAST({value} AS {self.process(cast.typeclause, **kw)})"
+        return super().visit_cast(cast, **kw)
 
     def visit_truediv_binary(self, binary, operator, **kw):
         # Integer / integer truncates in Firebird. Fixed NUMERIC casts can
