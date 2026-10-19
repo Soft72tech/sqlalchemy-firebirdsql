@@ -124,6 +124,7 @@ class AsyncAdapt_firebirdsql_dbapi:
 
         self.firebirdsql_version = getattr(firebird_sync, "__version__")
         self.paramstyle = "qmark"
+        self.Binary = firebird_sync.Binary
 
     def connect(self, *args, **kwargs):
         creator_fn = kwargs.pop("async_creator_fn", self.firebirdsql.connect)
