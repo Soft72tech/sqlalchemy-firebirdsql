@@ -6,6 +6,36 @@ from sqlalchemy.testing.requirements import SuiteRequirements
 
 
 class Requirements(SuiteRequirements):
+    # Verified on Firebird 5 with the locally fixed driver.
+
+    @property
+    def window_range(self):
+        return exclusions.open()
+
+    @property
+    def window_range_numeric(self):
+        return exclusions.open()
+
+    @property
+    def window_range_non_numeric(self):
+        return exclusions.open()
+
+    @property
+    def inline_check_constraint_reflection(self):
+        return exclusions.open()
+
+    @property
+    def server_defaults(self):
+        return exclusions.open()
+
+    @property
+    def column_collation_reflection(self):
+        return exclusions.open()
+
+    @property
+    def supports_bitwise_xor(self):
+        return exclusions.open()
+
     # Async
 
     @property
@@ -834,13 +864,9 @@ class Requirements(SuiteRequirements):
 
     @property
     def duplicate_key_raises_integrity_error(self):
-        """target dialect raises IntegrityError when reporting an INSERT
-        with a primary key violation.  (hint: it should)
-
-        """
-
-        # Firebird drivers does not raises IntegrityError.
-        return exclusions.closed()
+        """Primary-key violations raise IntegrityError."""
+        # Verified with the locally fixed sync and async driver.
+        return exclusions.open()
 
     @property
     def unbounded_varchar(self):
@@ -1145,11 +1171,9 @@ class Requirements(SuiteRequirements):
 
     @property
     def precision_numerics_many_significant_digits(self):
-        """target backend supports values with many digits on both sides,
-        such as 319438950232418390.273596, 87673.594069654243
-
-        """
-        return exclusions.closed()
+        """Exact numerics retain significant digits on both sides of the decimal."""
+        # Verified on Firebird 5 with exact Decimal parameter encoding.
+        return exclusions.open()
 
     @property
     def cast_precision_numerics_many_significant_digits(self):
@@ -1213,11 +1237,9 @@ class Requirements(SuiteRequirements):
 
     @property
     def precision_numerics_retains_significant_digits(self):
-        """A precision numeric type will return empty significant digits,
-        i.e. a value such as 10.000 will come back in Decimal form with
-        the .000 maintained."""
-
-        return exclusions.closed()
+        """Decimal results preserve trailing fractional zeros."""
+        # Verified on Firebird 5 with exact Decimal parameter encoding.
+        return exclusions.open()
 
     @property
     def infinity_floats(self):
@@ -1231,35 +1253,15 @@ class Requirements(SuiteRequirements):
 
     @property
     def precision_generic_float_type(self):
-        """target backend will return native floating point numbers with at
-        least seven decimal places when using the generic Float type.
-
-        """
-
-        # Firebird FLOAT does not ensure precision of 7 decimal digits after the decimal point.
-
-        # https://firebirdsql.org/file/documentation/html/en/refdocs/fblangref40/firebird-40-language-reference.html#fblangref40-datatypes-floattypes-approx
-        #   The FLOAT data type defaults to a 32-bit single precision floating-point type with an
-        #   approximate precision of 7 decimal digits after the decimal point (24 binary digits).
-        #   To ensure the safety of storage, rely on 6 decimal digits of precision.
-
-        return exclusions.closed()
+        """Generic Float uses double precision rather than single precision."""
+        # Float() compiles to DOUBLE PRECISION; REAL remains single precision.
+        return exclusions.open()
 
     @property
     def literal_float_coercion(self):
-        """target backend will return the exact float value 15.7563
-        with only four significant digits from this statement:
-
-        SELECT :param
-
-        where :param is the Python float 15.7563
-
-        i.e. it does not return 15.75629997253418
-
-        """
-
-        # Firebird returns 15.75629997253418.
-        return exclusions.closed()
+        """Standalone Python float binds retain double precision."""
+        # Float binds now use DOUBLE PRECISION.
+        return exclusions.open()
 
     @property
     def floats_to_four_decimals(self):

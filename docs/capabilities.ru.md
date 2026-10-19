@@ -4,11 +4,11 @@
 
 ## 1. Границы проверки
 
-Проверенный стек: **Python 3.13.5, SQLAlchemy 2.1.4, Firebird 5.0.3**, локальный `pyfirebirdsql` версии 1.4.0 с исправлениями до `079828f`; код диалекта до `38cf771`. Метаданные проекта допускают Python >=3.12 и SQLAlchemy >=2.0.41, но это не означает, что все эти сочетания проверены.
+Проверенный стек: **Python 3.13.5, SQLAlchemy 2.1.4, Firebird 5.0.3**, локальный `pyfirebirdsql` версии 1.4.0 с исправлениями до `7396bec`; диалект с temporal RANGE fix `3579037` и открытыми проверенными capability gates. Метаданные проекта допускают Python >=3.12 и SQLAlchemy >=2.0.41, но это не означает, что все эти сочетания проверены.
 
 **Важно о зависимостях:** результаты получены с локально исправленным драйвером. Обычная установка `firebirdsql>=1.4.0` не гарантирует наличие этих исправлений. Для воспроизведения нужен соответствующий исходный код; публикация исправленной версии и установка из PyPI отдельно не проверялись.
 
-Итог полного SQLAlchemy official suite для каждого из sync/async: **902 passed, 555 skipped, 2 failed, 0 errors**. Оба failures — попытки CTAS, неподдерживаемого Firebird 5. Дополнительные новые регрессионные проверки драйвера и диалекта: **82 passed**. Это не сертификация всех ORM-сценариев, миграций, производительности или отказоустойчивости.
+Итог полного SQLAlchemy official suite для каждого из sync/async: **926 passed, 531 skipped, 2 failed, 0 errors**. Оба failures — попытки CTAS, неподдерживаемого Firebird 5. Дополнительные новые регрессионные проверки драйвера и диалекта: **109 passed** (включая live temporal RANGE). Это не сертификация всех ORM-сценариев, миграций, производительности или отказоустойчивости.
 
 В таблицах:
 
@@ -104,7 +104,7 @@ statement = select(literal(Decimal("15.7563"), Numeric(18, 4)))
 | SELECT, JOIN, подзапросы, EXISTS, обычный IN | Нативный SQL и компиляция диалекта | Непустые и пустые наборы проверяются suite; tuple IN отдельно не заявлен |
 | LIMIT/OFFSET, обычный fetch | Адаптация к ROWS | Для предсказуемой пагинации задавать ORDER BY; PERCENT/WITH TIES не заявлены |
 | UNION и ORDER BY | Нативный UNION; диалект заменяет подходящие ссылки на ordinal positions | Не все комбинации вложенных UNION с LIMIT/OFFSET включены в проверку |
-| CTE, оконные функции | Серверный SQL | Проходят включённые варианты; некоторые CTE/DML и оконные RANGE-варианты закрыты requirements |
+| CTE, оконные функции | Серверный SQL | RANGE для integer/numeric и temporal ordering проверен; некоторые CTE/DML-варианты закрыты requirements |
 | INSERT/UPDATE/DELETE RETURNING | Нативный RETURNING | Не переносить этот вывод на bulk executemany RETURNING |
 | Executemany | Путь драйвера; в текущем aio — последовательные execute | Не обещает один сетевой запрос/пакет или ускоренный batch |
 | insertmanyvalues, multi-VALUES INSERT, executemany RETURNING | Не заявлены текущим диалектом | Для массовой загрузки отдельно оценить производительность и получение ключей |
@@ -165,7 +165,7 @@ Firebird 5 не поддерживает `CREATE TABLE ... AS SELECT`. Это с
 
 ## 7. Почему 555 skipped — не 555 реализованных возможностей
 
-Повторный полный async-прогон с `-rs` подтвердил **902 passed, 555 skipped, 2 failed**. Большое число пропусков обусловлено параметризацией и capability gates, но **каждая пропущенная проверка остаётся непроверенной**.
+Исходный полный async-прогон с `-rs`, до исправлений и открытия gates, подтвердил **902 passed, 555 skipped, 2 failed**. Ниже приведён исторический разбор этих 555 skips; актуальный полный результат после изменений — **926 passed, 531 skipped, 2 failed** для каждого sync/async. Большое число пропусков обусловлено параметризацией и capability gates, но **каждая пропущенная проверка остаётся непроверенной**.
 
 | Группа | Число пропусков | Интерпретация |
 |---|---:|---|
@@ -186,7 +186,7 @@ Firebird 5 не поддерживает `CREATE TABLE ... AS SELECT`. Это с
 1. Неприменимость/ограничение: schemas, materialized views, tuple IN, некоторые DDL-формы; optional sequence не означает отсутствия обычных sequences.
 2. Неполная реализация или покрытие: server-side cursors, bulk RETURNING, JSON/ARRAY API, numeric precision/timezone/historic-варианты. Часть gates консервативна либо унаследована; комментарий requirements не является проверенным дефектом текущего драйвера.
 
-Например, оконные функции в Firebird есть, но RANGE-тесты закрыты; DateTime timezone проверяется, а общий Time timezone gate закрыт. Нельзя переносить статус всего класса на каждую его возможность. Исторические даты и все комбинации precision требуют отдельной проверки перед использованием.
+Например, оконные функции в Firebird есть, но исходный baseline исключал RANGE-тесты (теперь они открыты); DateTime timezone проверяется, а общий Time timezone gate остаётся закрыт. Нельзя переносить статус всего класса на каждую его возможность. Исторические даты и все комбинации precision требуют отдельной проверки перед использованием.
 
 ### Точечный аудит закрытых gates
 
@@ -209,7 +209,7 @@ Firebird 5 reference §10.4 описывает RANGE для numeric/date/time/ti
 
 Главный массовый skip — schema-параметризация: семь multi-reflection семейств пропускают именно по 42 schema-варианта (3 scope × 7 kind × 2 filter); это не отсутствие get_multi_* целиком. Отдельные 84 пропуска table-options закрыты `reflect_table_options`; возможный schema gate здесь перекрывается более ранним исключением. Поэтому непересекающееся распределение всех 555 на сервер/диалект нельзя получить простым сложением закрытых requirements.
 
-Штатные requirements в рамках аудита не менялись. Ошибка exact numeric затем локализована и исправлена в драйвере (см. раздел типов). Unit encoding/INT128/status-vector: **8 passed**. Полный повторный suite после исправления: sync/async по **902 passed, 555 skipped, 2 CTAS failed**. Затем исправлен и temporal RANGE: SQLAlchemy 2.1 FrameClause с timedelta для DATE/TIMESTAMP переводится в дни, для TIME — в секунды через NUMERIC(38,18). Конвертация выполняется при каждом execute, в том числе из statement cache; исходный statement не меняется. DATE требует целых дней, отрицательные magnitude отклоняются. Это адаптация window frame, не универсальная реализация Interval. Live-регрессии проверяют DATE/TIMESTAMP/TIME и повторное выполнение с другим offset, sync/async: **24 passed** вместе с unit-проверками; official WindowFunctionTest с открытыми RANGE gates — по **5 passed**. Проверенные gates открываются отдельным изменением с повторным полным suite.
+В диагностической фазе штатные requirements не менялись. Ошибка exact numeric затем локализована и исправлена в драйвере (см. раздел типов). Unit encoding/INT128/status-vector: **8 passed**. Полный повторный suite после исправления: sync/async по **902 passed, 555 skipped, 2 CTAS failed**. Затем исправлен и temporal RANGE: SQLAlchemy 2.1 FrameClause с timedelta для DATE/TIMESTAMP переводится в дни, для TIME — в секунды через NUMERIC(38,18). Конвертация выполняется при каждом execute, в том числе из statement cache; исходный statement не меняется. DATE требует целых дней, отрицательные magnitude отклоняются. Это адаптация window frame, не универсальная реализация Interval. Live-регрессии проверяют DATE/TIMESTAMP/TIME и повторное выполнение с другим offset, sync/async: **24 passed** вместе с unit-проверками; official WindowFunctionTest с открытыми RANGE gates — по **5 passed**. Теперь открыты 12 проверенных gates: три RANGE, четыре precision, inline CHECK, server defaults, collation reflection, IntegrityError и XOR. Это вернуло **24** проверки без добавления skip/xfail: полный suite sync/async — по **926 passed, 531 skipped, 2 CTAS failed**. Expression defaults и остальные bitwise gates пока закрыты; schema/table-options пропуски этим изменением не устранялись.
 
 ## 8. Что проверено тестами, но не является production-функцией
 
@@ -246,4 +246,4 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest test/test_official_suite.py \
 
 Серверная документация: [Firebird 5 Language Reference](https://www.firebirdsql.org/file/documentation/chunk/en/refdocs/fblangref50/firebird-50-language-reference.html), [CREATE TABLE](https://www.firebirdsql.org/file/documentation/chunk/en/refdocs/fblangref50/fblangref50-ddl-table.html), [INSERT](https://www.firebirdsql.org/file/documentation/chunk/en/refdocs/fblangref50/fblangref50-dml-insert.html). Существенные разделы: типы/точность, text BLOB operations, CAST parameters, identity, размер ключа индекса, транзакции и системные таблицы.
 
-Артефакты локального аудита не входят в поставку: `baseline/phase-exact-final-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-report-skips-async.log`. Полнота неблокирующего asyncio, нагрузочная устойчивость, восстановление после сетевых отказов, все варианты complex expression indexes и пропущенные precision/temporal-проверки остаются отдельными задачами, а не подтверждёнными возможностями.
+Артефакты локального аудита не входят в поставку: `baseline/phase-exact-final-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-report-skips-async.log`, `baseline/phase-open-gates-full-{firebirdsql,firebirdsql_async}.log`. Полнота неблокирующего asyncio, нагрузочная устойчивость, восстановление после сетевых отказов, все варианты complex expression indexes и пропущенные precision/temporal-проверки остаются отдельными задачами, а не подтверждёнными возможностями.
