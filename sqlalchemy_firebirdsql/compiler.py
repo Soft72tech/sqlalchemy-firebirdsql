@@ -141,6 +141,21 @@ class FirebirdCompiler(compiler.SQLCompiler):
     def visit_mod_binary(self, binary, operator, **kw):
         return f"MOD({self.process(binary.left, **kw)}, {self.process(binary.right, **kw)})"
 
+    def visit_bitwise_or_op_binary(self, binary, operator, **kw):
+        return f"BIN_OR({self.process(binary.left, **kw)}, {self.process(binary.right, **kw)})"
+
+    def visit_bitwise_and_op_binary(self, binary, operator, **kw):
+        return f"BIN_AND({self.process(binary.left, **kw)}, {self.process(binary.right, **kw)})"
+
+    def visit_bitwise_lshift_op_binary(self, binary, operator, **kw):
+        return f"BIN_SHL({self.process(binary.left, **kw)}, {self.process(binary.right, **kw)})"
+
+    def visit_bitwise_rshift_op_binary(self, binary, operator, **kw):
+        return f"BIN_SHR({self.process(binary.left, **kw)}, {self.process(binary.right, **kw)})"
+
+    def visit_bitwise_not_op_unary_operator(self, unary, operator, **kw):
+        return f"BIN_NOT({self.process(unary.element, **kw)})"
+
     def visit_bitwise_xor_op_binary(self, binary, operator, **kw):
         return f"BIN_XOR({self.process(binary.left, **kw)}, {self.process(binary.right, **kw)})"
 

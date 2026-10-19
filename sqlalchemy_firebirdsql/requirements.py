@@ -36,6 +36,22 @@ class Requirements(SuiteRequirements):
     def supports_bitwise_xor(self):
         return exclusions.open()
 
+    @property
+    def supports_bitwise_or(self):
+        return exclusions.open()
+
+    @property
+    def supports_bitwise_and(self):
+        return exclusions.open()
+
+    @property
+    def supports_bitwise_not(self):
+        return exclusions.open()
+
+    @property
+    def supports_bitwise_shift(self):
+        return exclusions.open()
+
     # Async
 
     @property
