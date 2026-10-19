@@ -118,7 +118,9 @@ class FirebirdDialect(default.DefaultDialect):
     supports_is_distinct_from = True
 
     postfetch_lastrowid = False
-    use_insertmanyvalues = False
+    # SQLAlchemy collects RETURNING rows using its row-at-a-time fallback.
+    # Firebird still has no multi-row VALUES grammar; do not advertise it.
+    use_insertmanyvalues = True
     requires_name_normalize = True
 
     update_returning = True

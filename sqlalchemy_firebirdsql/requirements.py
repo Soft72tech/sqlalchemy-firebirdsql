@@ -448,10 +448,8 @@ class Requirements(SuiteRequirements):
 
     @property
     def autoincrement_insert(self):
-        """target platform generates new surrogate integer primary key values
-        when insert() is executed, excluding the pk column."""
-
-        return exclusions.closed()
+        """Generate an identity primary key when it is omitted from INSERT."""
+        return exclusions.open()
 
     @property
     def fetch_rows_post_commit(self):
