@@ -83,6 +83,8 @@ class FirebirdDialect(default.DefaultDialect):
     supports_sequences = True
     sequences_optional = False
     supports_comments = True
+    # Firebird INSERT ... SELECT places WITH after the INSERT target list.
+    cte_follows_insert = True
     supports_default_values = True
     supports_default_metavalue = True
     supports_identity_columns = True
@@ -123,6 +125,13 @@ class FirebirdDialect(default.DefaultDialect):
         "numeric": sqltypes.NUMERIC,
         "real": sqltypes.REAL,
         "smallint": sqltypes.SMALLINT,
+        # RDB$TYPES reports storage names, not SQL declaration names.
+        "short": sqltypes.SMALLINT,
+        "long": sqltypes.INTEGER,
+        "int64": sqltypes.BIGINT,
+        "text": fbtypes.FirebirdCHARACTER,
+        "varying": fbtypes.FirebirdVARCHAR,
+        "double": sqltypes.DOUBLE_PRECISION,
         "time": sqltypes.TIME,
         "time with time zone": sqltypes.TIME(timezone=True),
         "timestamp": sqltypes.TIMESTAMP,
@@ -255,11 +264,15 @@ class FirebirdDialect(default.DefaultDialect):
 
         cursor = connection.exec_driver_sql(unique_constraints_query, (tablename,))
 
-        if result := [
-            ReflectedUniqueConstraint(name=self.normalize_name(row.cname), column_names=[row.column_name])
-            for row in cursor
-        ]:
-            return result
+        constraints = {}
+        for row in cursor:
+            name = self.normalize_name(row.cname)
+            if name not in constraints:
+                constraints[name] = ReflectedUniqueConstraint(name=name, column_names=[])
+            constraints[name]["column_names"].append(self.normalize_name(row.column_name))
+
+        if constraints:
+            return list(constraints.values())
 
         if not self.has_table(connection, table_name, schema):
             raise exc.NoSuchTableError(table_name)
@@ -323,7 +336,6 @@ class FirebirdDialect(default.DefaultDialect):
                 LEFT OUTER JOIN rdb$relation_constraints rc
                              ON rc.rdb$index_name = ic.rdb$index_name
             WHERE ix.rdb$relation_name = :relation_name
-              AND ix.rdb$foreign_key IS NULL
               AND COALESCE(rc.rdb$constraint_type, '') <> 'PRIMARY KEY'
             ORDER BY ix.rdb$index_name, ic.rdb$field_position
         """
@@ -347,10 +359,11 @@ class FirebirdDialect(default.DefaultDialect):
                     expr = row.expression_source[1:-1]  # Remove outermost parenthesis added by Firebird
                     indexrec["expressions"] = expr.split("||")
 
-                indexrec["dialect_options"] = {
-                    "firebird_descending": bool(row.descending_flag),
-                    "firebird_where": row.condition_source,
-                }
+                indexrec["dialect_options"] = {}
+                if row.descending_flag:
+                    indexrec["dialect_options"]["firebird_descending"] = True
+                if row.condition_source is not None:
+                    indexrec["dialect_options"]["firebird_where"] = row.condition_source
 
             indexrec["column_names"].append(self.normalize_name(row.field_name))
 
@@ -370,7 +383,7 @@ class FirebirdDialect(default.DefaultDialect):
                 if expr := index.get("expressions"):
                     index["column_names"] = [x if self.normalize_name(x) in colset else None for x in expr]
 
-            return result
+            return sorted(result, key=lambda index: index["name"])
 
         if not self.has_table(connection, table_name, schema):
             raise exc.NoSuchTableError(table_name)
@@ -417,8 +430,7 @@ class FirebirdDialect(default.DefaultDialect):
 
             if not (constraint := constraints.get(name)):
                 constraint = ReflectedForeignKeyConstraint(
-                    name=row.cname,
-                    comment=None,
+                    name=name,
                     constrained_columns=[],
                     # constrained_columns=[cast(str, self.normalize_name(row.fname))],
                     referred_schema=None,
@@ -426,12 +438,12 @@ class FirebirdDialect(default.DefaultDialect):
                     # referred_columns=[cast(str, self.normalize_name(row.targetfname))],
                     referred_columns=[],
                     options={
-                        "onupdate": row.update_rule
-                        if row.update_rule not in ["NO ACTION", "RESCTRICT"]
-                        else {},
-                        "ondelete": row.delete_rule
-                        if row.delete_rule not in ["NO ACTION", "RESCTRICT"]
-                        else {},
+                        key: rule
+                        for key, rule in (
+                            ("onupdate", row.update_rule),
+                            ("ondelete", row.delete_rule),
+                        )
+                        if rule not in (None, "NO ACTION", "RESTRICT")
                     },
                 )
                 constraints[name] = constraint
@@ -483,6 +495,34 @@ class FirebirdDialect(default.DefaultDialect):
         ]
 
     @reflection.cache
+    def get_view_names(self, connection: Connection, schema=None, **kw):
+        return [
+            self.normalize_name(row[0])
+            for row in connection.exec_driver_sql(
+                "SELECT TRIM(rdb$relation_name) FROM rdb$relations "
+                "WHERE rdb$relation_type = 1 "
+                "AND COALESCE(rdb$system_flag, 0) = 0 ORDER BY 1"
+            )
+        ]
+
+    @reflection.cache
+    def get_temp_table_names(self, connection: Connection, schema=None, **kw):
+        # RDB$RELATION_TYPE 4/5 are connection-/transaction-scoped GTTs.
+        return [
+            self.normalize_name(row[0])
+            for row in connection.exec_driver_sql(
+                "SELECT TRIM(rdb$relation_name) FROM rdb$relations "
+                "WHERE rdb$relation_type IN (4, 5) "
+                "AND COALESCE(rdb$system_flag, 0) = 0 ORDER BY 1"
+            )
+        ]
+
+    @reflection.cache
+    def get_temp_view_names(self, connection: Connection, schema=None, **kw):
+        # Firebird has global temporary tables, but no temporary views.
+        return []
+
+    @reflection.cache
     def get_columns(
         self,
         connection: Connection,
@@ -528,34 +568,38 @@ class FirebirdDialect(default.DefaultDialect):
         tablename = self.denormalize_name(table_name)
         cursor = connection.exec_driver_sql(columns_query, (tablename,))
 
-        binary_charset = "OCTETS"  # noqa: F841
-        national_charset = "ISO8859_1"  # noqa: F841
-
         def match_column_type(row):
-            column_cls = self.ischema_names.get(row.field_type)
+            column_cls = self.ischema_names.get(row.field_type.lower())
 
             match column_cls:
                 case fbtypes.FirebirdCHARACTER | fbtypes.FirebirdVARCHAR:
                     match (column_cls, row.character_set_name):
-                        case (fbtypes.FirebirdCHARACTER, binary_charset):  # noqa: F841
+                        case (fbtypes.FirebirdCHARACTER, "OCTETS"):
                             column_type = fbtypes.FirebirdBINARY(
                                 length=row.field_length,
                                 charset=row.character_set_name,
                             )
-                        case (fbtypes.FirebirdVARCHAR, binary_charset):  # noqa: F841
+                        case (fbtypes.FirebirdVARCHAR, "OCTETS"):
                             column_type = fbtypes.FirebirdVARCHAR(
                                 length=row.field_length,
                                 charset=row.character_set_name,
                                 collation=row.collation_name,
                             )
-                        case (fbtypes.FirebirdCHARACTER, national_charset):  # noqa: F841
+                        case (fbtypes.FirebirdCHARACTER, "ISO8859_1"):
                             column_type = fbtypes.FirebirdNCHAR(
                                 length=row.field_length,
                                 charset=row.character_set_name,
                                 collation=row.collation_name,
                             )
-                        case (fbtypes.FirebirdVARCHAR, national_charset):  # noqa: F841
+                        case (fbtypes.FirebirdVARCHAR, "ISO8859_1"):
                             column_type = fbtypes.FirebirdNVARCHAR(
+                                length=row.field_length,
+                                charset=row.character_set_name,
+                                collation=row.collation_name,
+                            )
+
+                        case _:
+                            column_type = column_cls(
                                 length=row.field_length,
                                 charset=row.character_set_name,
                                 collation=row.collation_name,
@@ -564,7 +608,10 @@ class FirebirdDialect(default.DefaultDialect):
                 case sqltypes.NUMERIC:
                     column_type = fbtypes.FirebirdNumeric(precision=row.field_precision)
 
-                case sqltypes.INT | sqltypes.INTEGER:
+                case (
+                    sqltypes.INT | sqltypes.INTEGER | sqltypes.SMALLINT
+                    | sqltypes.BIGINT | fbtypes.FirebirdINT128
+                ):
                     match row.field_sub_type:
                         case 0:
                             column_type = column_cls()
@@ -605,7 +652,9 @@ class FirebirdDialect(default.DefaultDialect):
                 default=row.default_source.replace("default", "").replace("DEFAULT", "").trim()
                 if row.default_source
                 else None,
-                autoincrement=row.identity_type is not None,
+                # Do not override SQLAlchemy's PK autoincrement inference for
+                # ordinary columns; identity metadata is the positive signal.
+                **({"autoincrement": True} if row.identity_type is not None else {}),
                 comment=row.description,
                 computed=ReflectedComputed(sqltext=row.computed_source) if row.computed_source else None,
                 identity=ReflectedIdentity(

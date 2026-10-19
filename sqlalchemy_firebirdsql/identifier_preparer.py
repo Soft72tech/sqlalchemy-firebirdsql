@@ -2,7 +2,7 @@ from sqlalchemy.sql import compiler
 
 
 class FirebirdIdentifierPreparer(compiler.IdentifierPreparer):
-    reserved_keywords = {
+    reserved_words = {
         "add",
         "admin",
         "all",

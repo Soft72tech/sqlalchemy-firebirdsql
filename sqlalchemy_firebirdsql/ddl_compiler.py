@@ -91,7 +91,7 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
 
     def post_create_table(self, table):
         table_options = []
-        on_commit = table.dialect_options["firebird.firebirdsql"].get("on_commit")
+        on_commit = table.dialect_options["firebird"].get("on_commit")
         if on_commit:
             table_options.append(f"ON COMMIT {on_commit}")
         return " " + ", ".join(table_options)
