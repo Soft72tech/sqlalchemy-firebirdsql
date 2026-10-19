@@ -52,6 +52,15 @@ class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
             return "DOUBLE PRECISION"
         return f"FLOAT({type_.precision})"
 
+    def visit_TEXT(self, type_, **kw):
+        result = "BLOB SUB_TYPE TEXT"
+        if type_.collation:
+            result += " COLLATE " + self.dialect.identifier_preparer.quote(type_.collation)
+        return result
+
+    visit_CLOB = visit_TEXT
+    visit_NCLOB = visit_TEXT
+
     def visit_JSON(self, type_, **kw):
         return "BLOB"
 
