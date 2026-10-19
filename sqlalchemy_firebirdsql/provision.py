@@ -1,6 +1,24 @@
 """Firebird-specific support for SQLAlchemy's external dialect suite."""
-from sqlalchemy import inspect
+from sqlalchemy import event, inspect
+from sqlalchemy.engine import Engine
+from sqlalchemy.schema import CreateIndex, CreateTable, DropIndex, DropTable
 from sqlalchemy.testing import provision
+
+
+@event.listens_for(Engine, "after_execute")
+def commit_test_ddl(connection, statement, *args):
+    # Test infrastructure only: Firebird DDL metadata becomes usable after
+    # commit (Language Reference, chapter 5). Generic suite fixtures create
+    # tables/indexes and immediately use them within a managed transaction.
+    # Preserve that transaction object, as the reference Firebird dialect does:
+    # https://github.com/pauldex/sqlalchemy-firebird/blob/master/sqlalchemy_firebird/provision.py
+    # Public commit()/begin() would invalidate the fixture's transaction manager.
+    # exec_driver_sql deliberately does not pass through this event.
+    if connection.dialect.name == "firebird" and isinstance(
+        statement, (CreateTable, DropTable, CreateIndex, DropIndex)
+    ):
+        connection._commit_impl()
+        connection._begin_impl(connection._transaction)
 
 
 @provision.temp_table_keyword_args.for_db("firebird")

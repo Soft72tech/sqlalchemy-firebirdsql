@@ -21,6 +21,8 @@ dev = [
 sqlalchemy_firebirdsql = "sqlalchemy_firebirdsql"
 
 [project.entry-points."sqlalchemy.dialects"]
+"firebird" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
+"firebird.firebirdsql_async" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialectAsync_firebirdsql"
 "firebird.firebirdsql" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
 "firebirdsql" = "sqlalchemy_firebirdsql.firebirdsql:FirebirdDialect_firebirdsql"
 
