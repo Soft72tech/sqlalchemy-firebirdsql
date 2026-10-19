@@ -372,6 +372,8 @@ class FirebirdDialect(default.DefaultDialect):
                    ix.rdb$index_type AS descending_flag,
                    TRIM(ic.rdb$field_name) AS field_name,
                    TRIM(ix.rdb$expression_source) expression_source,
+                   TRIM(rc.rdb$constraint_name) AS constraint_name,
+                   TRIM(rc.rdb$constraint_type) AS constraint_type,
                    {condition_source_expr} condition_source
             FROM rdb$indices ix
                 LEFT OUTER JOIN rdb$index_segments ic
@@ -397,6 +399,8 @@ class FirebirdDialect(default.DefaultDialect):
                 indexrec["name"] = self.normalize_name(row.index_name)
                 indexrec["column_names"] = []
                 indexrec["unique"] = bool(row.unique_flag)
+                if row.constraint_type == "UNIQUE":
+                    indexrec["duplicates_constraint"] = self.normalize_name(row.constraint_name)
 
                 if row.expression_source is not None:
                     expr = row.expression_source[1:-1]  # Remove outermost parenthesis added by Firebird
@@ -703,21 +707,20 @@ class FirebirdDialect(default.DefaultDialect):
                 name=cast(str, self.normalize_name(row.field_name)),
                 type=match_column_type(row),
                 nullable=not bool(row.null_flag),
-                default=row.default_source.replace("default", "").replace("DEFAULT", "").trim()
+                default=row.default_source.replace("default", "").replace("DEFAULT", "").strip()
                 if row.default_source
                 else None,
                 # Do not override SQLAlchemy's PK autoincrement inference for
                 # ordinary columns; identity metadata is the positive signal.
                 **({"autoincrement": True} if row.identity_type is not None else {}),
                 comment=row.description,
-                computed=ReflectedComputed(sqltext=row.computed_source) if row.computed_source else None,
-                identity=ReflectedIdentity(
+                **({"computed": ReflectedComputed(sqltext=row.computed_source)}
+                   if row.computed_source else {}),
+                **({"identity": ReflectedIdentity(
                     always=row.identity_type == 0,
                     start=row.initial_value,
                     increment=row.generator_increment,
-                )
-                if row.identity_type
-                else None,
+                )} if row.identity_type is not None else {}),
             )
             for row in cursor
         ]:
