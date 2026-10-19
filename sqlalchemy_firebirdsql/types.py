@@ -85,6 +85,10 @@ class FirebirdNVARCHAR(sqltypes.NVARCHAR):
         self.charset = "ISO8859_1"
 
 
+class FirebirdEnum(sqltypes.Enum):
+    render_bind_cast = True
+
+
 class FirebirdNumeric(sqltypes.Numeric):
     render_bind_cast = True
 

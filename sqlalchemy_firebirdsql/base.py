@@ -166,6 +166,7 @@ class FirebirdDialect(default.DefaultDialect):
     colspecs = {
         sqltypes.Integer: fbtypes.FirebirdInteger,
         sqltypes.BigInteger: fbtypes.FirebirdBIGINT,
+        sqltypes.Enum: fbtypes.FirebirdEnum,
         sqltypes.String: fbtypes.FirebirdString,
         sqltypes.VARCHAR: fbtypes.FirebirdVARCHAR,
         sqltypes.Numeric: fbtypes.FirebirdNumeric,
