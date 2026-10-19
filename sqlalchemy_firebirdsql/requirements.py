@@ -9,6 +9,14 @@ class Requirements(SuiteRequirements):
     # Verified on Firebird 5 with the locally fixed driver.
 
     @property
+    def nvarchar_types(self):
+        return exclusions.open()
+
+    @property
+    def indexes_check_column_order(self):
+        return exclusions.open()
+
+    @property
     def window_range(self):
         return exclusions.open()
 

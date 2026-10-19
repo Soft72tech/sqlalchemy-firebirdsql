@@ -74,6 +74,7 @@ asyncio.run(main())
 | Float(p), REAL | FLOAT(p), REAL | В Firebird 5 p — двоичная точность; REAL остаётся single precision |
 | String(n), VARCHAR(n) | Нативный VARCHAR; string binds приводятся к text BLOB | Это предотвращает усечение LIKE-паттерна до длины столбца. План и скорость сравнения с BLOB нужно проверять отдельно |
 | String без длины | DDL подставляет 255 | Это **не** неограниченная строка; задавать длину либо Text |
+| NCHAR, NVARCHAR | NCHAR / NATIONAL CHARACTER VARYING | Firebird national types используют **ISO8859_1**, не произвольный Unicode; для Unicode выбирать String/Text с подходящим charset БД. Длина/reflection и Latin-1 round-trip проверены sync/async |
 | Text, UnicodeText, CLOB | Нативный BLOB SUB_TYPE TEXT | Длина Text(255) не ограничивает BLOB до 255 символов |
 | Date/Time/DateTime | Нативные типы плюс bind casts | Точность времени Firebird — 100 мкс, не произвольные микросекунды Python |
 | DateTime(timezone=True) | TIMESTAMP WITH TIME ZONE | Проверенные temporal-тесты проходят; правила зон зависят и от сервера |
@@ -164,6 +165,8 @@ async with engine.begin() as connection:
 Firebird 5 не поддерживает `CREATE TABLE ... AS SELECT`. Это создание новой физической таблицы из результата запроса, а не CREATE VIEW. Поддерживаемый путь: **явный CREATE TABLE, затем INSERT INTO ... SELECT**, с корректными транзакционными границами. Автоматической CTAS-эмуляции в диалекте нет.
 
 Два оставшихся failures `TableViaSelectTest.test_without_metadata[plain0/plain1]` — отсутствие capability guard в общем suite, хотя `requires.create_table_as` закрыт. Это не ошибка sync/async протокола. Не объявляем suite зелёным и не отключаем эти два случая ради результата.
+
+Дополнительная проверка reflection: порядок колонок составного индекса и NCHAR/NVARCHAR длины проходят official suite — по **7 passed** sync/async. NVARCHAR DDL исправлен на поддерживаемый `NATIONAL CHARACTER VARYING(n)`; отдельные unit/live регрессии — **7 passed**. Per-column ASC/DESC и repeated-local-column FK этим не объявляются поддержанными.
 
 ## 7. Почему 555 skipped — не 555 реализованных возможностей
 

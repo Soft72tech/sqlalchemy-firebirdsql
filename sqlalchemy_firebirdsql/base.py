@@ -44,6 +44,13 @@ class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
     def _render_string_type(self, name: str, length: Optional[int], collation: Optional[str], *args, **kw) -> str:
         return super()._render_string_type(name, length or 255, collation, *args, **kw)
 
+    def visit_NVARCHAR(self, type_, **kw):
+        # Firebird's national varying string is ISO8859_1, not Unicode.
+        # NVARCHAR itself is not a recognized DDL spelling.
+        return self._render_string_type(
+            "NATIONAL CHARACTER VARYING", type_.length, type_.collation, **kw
+        )
+
     def visit_DOUBLE(self, type_, **kw):
         return "DOUBLE PRECISION"
 
