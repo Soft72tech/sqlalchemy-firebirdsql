@@ -8,7 +8,7 @@
 
 **Важно о зависимостях:** результаты получены с локально исправленным драйвером. Обычная установка `firebirdsql>=1.4.0` не гарантирует наличие этих исправлений. Для воспроизведения нужен соответствующий исходный код; публикация исправленной версии и установка из PyPI отдельно не проверялись.
 
-Итог полного SQLAlchemy official suite для каждого из sync/async: **974 passed, 540 skipped, 2 failed, 0 errors**. Оба failures — попытки CTAS, неподдерживаемого Firebird 5. Дополнительные новые регрессионные проверки драйвера и диалекта: **168 passed** (включая live temporal RANGE, bitwise, national strings и RETURNING fallback). Это не сертификация всех ORM-сценариев, миграций, производительности или отказоустойчивости.
+Итог полного SQLAlchemy official suite для каждого из sync/async: **1017 passed, 497 skipped, 2 failed, 0 errors**. Оба failures — попытки CTAS, неподдерживаемого Firebird 5. Дополнительные новые регрессионные проверки драйвера и диалекта: **180 passed** (включая live temporal RANGE, bitwise, national strings, table options и RETURNING fallback). Это не сертификация всех ORM-сценариев, миграций, производительности или отказоустойчивости.
 
 В таблицах:
 
@@ -149,7 +149,7 @@ async with engine.begin() as connection:
 | Reflection | Системные таблицы RDB$, нормализация имён | Проверены столбцы, PK/FK/UNIQUE/CHECK, индексы, identity/computed, views, comments и sequences в включённых вариантах suite |
 | get_multi_* | Контракт SQLAlchemy, в том числе общие fallback-механизмы | Нельзя обещать один оптимизированный запрос вместо обхода объектов |
 | Отдельные SQL schemas | Не поддерживаются в Firebird 5 / supports_schemas=False | Не задавать schema="test_schema" как в PostgreSQL; schema_translate_map не создаёт schemas |
-| Полная reflection table options | Не заявлена | Нельзя обещать без потерь восстановить все серверные параметры таблицы |
+| Reflection table options | `firebird_on_commit` для GTT; `{}` для обычных таблиц/views | PRESERVE/DELETE ROWS определяются по RDB$RELATION_TYPE; это не полное восстановление SQL SECURITY, external-file и остальных параметров. При пересоздании GTT нужен явный GLOBAL TEMPORARY prefix |
 
 ### Что может удивить
 
@@ -171,7 +171,7 @@ Firebird 5 не поддерживает `CREATE TABLE ... AS SELECT`. Это с
 
 ## 7. Почему 555 skipped — не 555 реализованных возможностей
 
-Исходный полный async-прогон с `-rs`, до исправлений и открытия gates, подтвердил **902 passed, 555 skipped, 2 failed**. Ниже приведён исторический разбор этих 555 skips; актуальный полный результат после изменений — **974 passed, 540 skipped, 2 failed** для каждого sync/async. Большое число пропусков обусловлено параметризацией и capability gates, но **каждая пропущенная проверка остаётся непроверенной**.
+Исходный полный async-прогон с `-rs`, до исправлений и открытия gates, подтвердил **902 passed, 555 skipped, 2 failed**. Ниже приведён исторический разбор этих 555 skips; актуальный полный результат после изменений — **1017 passed, 497 skipped, 2 failed** для каждого sync/async. Большое число пропусков обусловлено параметризацией и capability gates, но **каждая пропущенная проверка остаётся непроверенной**.
 
 | Группа | Число пропусков | Интерпретация |
 |---|---:|---|
@@ -223,6 +223,10 @@ Firebird 5 reference §10.4 описывает RANGE для numeric/date/time/ti
 
 При временном открытии autoincrement gate обнаружились 14 failures: executemany RETURNING был запрещён, затем row-at-a-time pipeline выявил два BLOB-output дефекта. Теперь они исправлены; Returning/InsertBehavior/Enum группа даёт sync/async по **50 passed, 26 skipped**. Native multi-VALUES/JSON/UUID-варианты этим не объявлены реализованными.
 
+После реализации `get_table_options` и открытия соответствующего gate вернулись ещё **43** проверки: **1017 passed, 497 skipped, 2 CTAS failed**, всего 1516. Table-options/missing-table группа: по **54 passed, 44 skipped** sync/async; 12 unit/live регрессий проверяют GTT scope, quoted names, single/multi reflection и отсутствие таблицы. Schema-варианты не эмулировались. Оставшиеся 497 skips включают 361 ComponentReflectionTest, 26 ReturningTest и 110 прочих; generic причины pytest всё ещё не дают полного распределения «сервер/диалект».
+
+Дополнительная диагностика repeated FK: Firebird 5 отверг `FOREIGN KEY(cid, cid)` при CREATE TABLE; четыре соответствующих теста не следует открывать как поддерживаемые. Remote-repeat варианты используют ту же отклоняемую local-repeat fixture, поэтому их самостоятельная поддержка этой диагностикой не определена. Expression defaults, per-column ASC/DESC и прочие закрытые возможности требуют отдельной сверки reference и API.
+
 ## 8. Что проверено тестами, но не является production-функцией
 
 В `test/test_official_suite.py` находятся явные адаптации фикстур:
@@ -258,4 +262,4 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest test/test_official_suite.py \
 
 Серверная документация: [Firebird 5 Language Reference](https://www.firebirdsql.org/file/documentation/chunk/en/refdocs/fblangref50/firebird-50-language-reference.html), [CREATE TABLE](https://www.firebirdsql.org/file/documentation/chunk/en/refdocs/fblangref50/fblangref50-ddl-table.html), [INSERT](https://www.firebirdsql.org/file/documentation/chunk/en/refdocs/fblangref50/fblangref50-dml-insert.html). Существенные разделы: типы/точность, text BLOB operations, CAST parameters, identity, размер ключа индекса, транзакции и системные таблицы.
 
-Артефакты локального аудита не входят в поставку: `baseline/phase-exact-final-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-report-skips-async.log`, `baseline/phase-open-gates-full-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-bitwise-full-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-returning-enabled-full-{firebirdsql,firebirdsql_async}.log`. Полнота неблокирующего asyncio, нагрузочная устойчивость, восстановление после сетевых отказов, все варианты complex expression indexes и пропущенные precision/temporal-проверки остаются отдельными задачами, а не подтверждёнными возможностями.
+Артефакты локального аудита не входят в поставку: `baseline/phase-exact-final-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-report-skips-async.log`, `baseline/phase-open-gates-full-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-bitwise-full-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-returning-enabled-full-{firebirdsql,firebirdsql_async}.log`, `baseline/phase-table-options-full-{firebirdsql,firebirdsql_async}.log`. Полнота неблокирующего asyncio, нагрузочная устойчивость, восстановление после сетевых отказов, все варианты complex expression indexes и пропущенные precision/temporal-проверки остаются отдельными задачами, а не подтверждёнными возможностями.

@@ -517,6 +517,19 @@ class FirebirdDialect(default.DefaultDialect):
         return reflection.ReflectionDefaults.foreign_keys()
 
     @reflection.cache
+    def get_table_options(self, connection: Connection, table_name: str, schema=None, **kw):
+        # Firebird 5 reference, RDB$RELATIONS: 4/5 are connection-/
+        # transaction-scoped global temporary tables respectively.
+        row = connection.exec_driver_sql(
+            "SELECT rdb$relation_type FROM rdb$relations WHERE rdb$relation_name = ?",
+            (self.denormalize_name(table_name),),
+        ).first()
+        if row is None:
+            raise exc.NoSuchTableError(table_name)
+        on_commit = {4: "PRESERVE ROWS", 5: "DELETE ROWS"}.get(row[0])
+        return {"firebird_on_commit": on_commit} if on_commit else {}
+
+    @reflection.cache
     def get_table_comment(
         self,
         connection: Connection,

@@ -1757,8 +1757,8 @@ class Requirements(SuiteRequirements):
 
     @property
     def reflect_table_options(self):
-        """Target database must support reflecting table_options."""
-        return exclusions.closed()
+        """Reflect supported dialect options, including GTT ON COMMIT."""
+        return exclusions.open()
 
     @property
     def materialized_views(self):
