@@ -142,7 +142,8 @@ class FirebirdDialect(default.DefaultDialect):
 
     # TODO: all colspecs
     colspecs = {
-        sqltypes.BigInteger: sqltypes.BIGINT,
+        sqltypes.Integer: fbtypes.FirebirdInteger,
+        sqltypes.BigInteger: fbtypes.FirebirdBIGINT,
         sqltypes.ARRAY: fbtypes.FirebirdARRAY,
         sqltypes.BLOB: sqltypes.BLOB,
         sqltypes.DateTime: fbtypes.FirebirdTIMESTAMP,

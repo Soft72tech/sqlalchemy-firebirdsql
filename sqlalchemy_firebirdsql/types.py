@@ -132,7 +132,7 @@ class FirebirdINTEGER(sqltypes.INTEGER):
 
 
 class FirebirdBIGINT(sqltypes.BIGINT):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdINT128(sqltypes.Integer):
