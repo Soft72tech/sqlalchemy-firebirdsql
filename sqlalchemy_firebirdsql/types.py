@@ -88,11 +88,11 @@ class FirebirdNumeric(sqltypes.Numeric):
 
 
 class FirebirdFLOAT(sqltypes.FLOAT):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdDOUBLE_PRECISION(sqltypes.DOUBLE_PRECISION):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdDECFLOAT(FirebirdNumeric):

@@ -41,8 +41,16 @@ class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
     def visit_boolean(self, type_: sqltypes.Boolean, **kw: Any) -> str:
         return super().visit_boolean(type_, **kw)
 
-    def _render_string_type(self, name: str, length: Optional[int], collation: Optional[str]) -> str:
-        return super()._render_string_type(name, length or 255, collation)
+    def _render_string_type(self, name: str, length: Optional[int], collation: Optional[str], *args, **kw) -> str:
+        return super()._render_string_type(name, length or 255, collation, *args, **kw)
+
+    def visit_DOUBLE(self, type_, **kw):
+        return "DOUBLE PRECISION"
+
+    def visit_FLOAT(self, type_, **kw):
+        if type_.precision is None:
+            return "DOUBLE PRECISION"
+        return f"FLOAT({type_.precision})"
 
     def visit_JSON(self, type_, **kw):
         return "BLOB"
@@ -149,6 +157,8 @@ class FirebirdDialect(default.DefaultDialect):
     colspecs = {
         sqltypes.Integer: fbtypes.FirebirdInteger,
         sqltypes.BigInteger: fbtypes.FirebirdBIGINT,
+        sqltypes.Float: fbtypes.FirebirdFLOAT,
+        sqltypes.Double: fbtypes.FirebirdDOUBLE_PRECISION,
         sqltypes.ARRAY: fbtypes.FirebirdARRAY,
         sqltypes.BLOB: sqltypes.BLOB,
         sqltypes.DateTime: fbtypes.FirebirdTIMESTAMP,
