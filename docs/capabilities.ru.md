@@ -202,14 +202,14 @@ Firebird 5 не поддерживает `CREATE TABLE ... AS SELECT`. Это с
 | precision_numerics_retains_significant_digits | 1 passed | Проверенный Decimal `1.000` сохраняет scale |
 | precision_numerics_many_significant_digits | 1 failed; 2 TrueDiv-варианта passed | Общий gate скрывает и рабочие случаи, и реальную ошибку NUMERIC(38,12), описанную выше |
 | window_range, window_range_numeric | 2 passed | Firebird 5 поддерживает RANGE; проверенные integer/numeric frames работают |
-| window_range_non_numeric | 1 failed | timedelta компилируется в TIMESTAMP-offset; сервер требует числовой offset. Это несовместимость адаптации, не отсутствие DATE RANGE в Firebird |
+| window_range_non_numeric | 1 failed до исправления | timedelta ошибочно компилировался в TIMESTAMP-offset; исправлено преобразованием к числовому offset (см. ниже) |
 | supports_bitwise_xor | 1 passed | Компилятор уже переводит XOR в BIN_XOR; остальные 5 bitwise-вариантов в этой проверке не открывали |
 
 Firebird 5 reference §10.4 описывает RANGE для numeric/date/time/timestamp ORDER BY; §8.6 — BIN_* функции; §5.6.3 — CREATE OR ALTER VIEW, не тождественный SQLAlchemy CREATE OR REPLACE VIEW. Наличие серверного аналога не гарантирует готовность соответствующего API диалекта.
 
 Главный массовый skip — schema-параметризация: семь multi-reflection семейств пропускают именно по 42 schema-варианта (3 scope × 7 kind × 2 filter); это не отсутствие get_multi_* целиком. Отдельные 84 пропуска table-options закрыты `reflect_table_options`; возможный schema gate здесь перекрывается более ранним исключением. Поэтому непересекающееся распределение всех 555 на сервер/диалект нельзя получить простым сложением закрытых requirements.
 
-Штатные requirements в рамках аудита не менялись. Ошибка exact numeric затем локализована и исправлена в драйвере (см. раздел типов). Unit encoding/INT128/status-vector: **8 passed**. Полный повторный suite после исправления: sync/async по **902 passed, 555 skipped, 2 CTAS failed**. Следующие задачи: исправить timedelta RANGE translation, затем открывать подтверждённые gates отдельными изменениями с полным повторным suite.
+Штатные requirements в рамках аудита не менялись. Ошибка exact numeric затем локализована и исправлена в драйвере (см. раздел типов). Unit encoding/INT128/status-vector: **8 passed**. Полный повторный suite после исправления: sync/async по **902 passed, 555 skipped, 2 CTAS failed**. Затем исправлен и temporal RANGE: SQLAlchemy 2.1 FrameClause с timedelta для DATE/TIMESTAMP переводится в дни, для TIME — в секунды через NUMERIC(38,18). Конвертация выполняется при каждом execute, в том числе из statement cache; исходный statement не меняется. DATE требует целых дней, отрицательные magnitude отклоняются. Это адаптация window frame, не универсальная реализация Interval. Live-регрессии проверяют DATE/TIMESTAMP/TIME и повторное выполнение с другим offset, sync/async: **24 passed** вместе с unit-проверками; official WindowFunctionTest с открытыми RANGE gates — по **5 passed**. Проверенные gates открываются отдельным изменением с повторным полным suite.
 
 ## 8. Что проверено тестами, но не является production-функцией
 

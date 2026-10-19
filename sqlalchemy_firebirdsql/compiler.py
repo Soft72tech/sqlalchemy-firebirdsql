@@ -1,10 +1,43 @@
 import re
 
-from sqlalchemy import literal_column
+from sqlalchemy import exc, literal_column, type_coerce
 from sqlalchemy.sql import compiler, elements, selectable, sqltypes, visitors
 
 
 class FirebirdCompiler(compiler.SQLCompiler):
+    def visit_over(self, over, **kw):
+        frame = over.range_
+        # FrameClause is new in SQLAlchemy 2.1; leave 2.0 tuple frames alone.
+        if frame is not None and hasattr(frame, 'lower_bind'):
+            bounds = (frame.lower_bind, frame.upper_bind)
+            if any(bind is not None and isinstance(bind.type, sqltypes.Interval)
+                   for bind in bounds):
+                from .types import _FirebirdRangeOffset
+
+                order = list(over.order_by) if over.order_by is not None else []
+                if len(order) != 1:
+                    raise exc.CompileError('Temporal RANGE requires one typed ORDER BY expression')
+                expression = order[0]
+                while isinstance(expression, elements.UnaryExpression):
+                    expression = expression.element
+                type_ = expression.type
+                if isinstance(type_, sqltypes.DateTime):
+                    unit = 'timestamp'
+                elif isinstance(type_, sqltypes.Date):
+                    unit = 'date'
+                elif isinstance(type_, sqltypes.Time):
+                    unit = 'time'
+                else:
+                    raise exc.CompileError('timedelta RANGE requires DATE, TIME or TIMESTAMP ordering')
+                frame = frame._clone()
+                for name in ('lower_bind', 'upper_bind'):
+                    bind = getattr(frame, name)
+                    if bind is not None and isinstance(bind.type, sqltypes.Interval):
+                        setattr(frame, name, type_coerce(bind, _FirebirdRangeOffset(unit)))
+                over = over._clone()
+                over.range_ = frame
+        return super().visit_over(over, **kw)
+
     def render_bind_cast(self, type_, dbapi_type, sqltext) -> str:
         if isinstance(dbapi_type, sqltypes.String):
             # The compared column length is not a bound on a LIKE pattern or

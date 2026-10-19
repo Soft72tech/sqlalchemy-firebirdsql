@@ -1,4 +1,6 @@
 import json
+from datetime import timedelta
+from decimal import Decimal, localcontext
 from typing import Any, Optional
 from sqlalchemy import BLOB, Dialect
 from sqlalchemy.sql import sqltypes
@@ -8,6 +10,33 @@ from sqlalchemy.sql import sqltypes
 # TODO: check render_bind_cast options
 
 DEFAULT_STRING_LENGTH = 255
+
+
+class _FirebirdRangeOffset(sqltypes.TypeDecorator):
+    """Convert temporal RANGE bounds at execution, including cached binds."""
+
+    impl = sqltypes.Numeric(38, 18)
+    cache_ok = True
+
+    def __init__(self, unit):
+        self.unit = unit
+        super().__init__()
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if not isinstance(value, timedelta):
+            raise TypeError('Temporal RANGE offsets must be timedelta values')
+        microseconds = ((value.days * 86400 + value.seconds) * 1000000
+                        + value.microseconds)
+        if microseconds < 0:
+            raise ValueError('RANGE offset magnitude must not be negative')
+        if self.unit == 'date' and microseconds % 86400000000:
+            raise ValueError('DATE RANGE offsets require whole days')
+        divisor = 1000000 if self.unit == 'time' else 86400000000
+        with localcontext() as context:
+            context.prec = 50
+            return (Decimal(microseconds) / Decimal(divisor)).quantize(Decimal('1e-18'))
 
 
 class FirebirdString(sqltypes.String):
