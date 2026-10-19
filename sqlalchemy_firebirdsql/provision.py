@@ -1,7 +1,7 @@
 """Firebird-specific support for SQLAlchemy's external dialect suite."""
 from sqlalchemy import event, inspect
 from sqlalchemy.engine import Engine
-from sqlalchemy.schema import CreateIndex, CreateTable, DropIndex, DropTable
+from sqlalchemy.schema import ExecutableDDLElement
 from sqlalchemy.testing import provision
 
 
@@ -15,7 +15,7 @@ def commit_test_ddl(connection, statement, *args):
     # Public commit()/begin() would invalidate the fixture's transaction manager.
     # exec_driver_sql deliberately does not pass through this event.
     if connection.dialect.name == "firebird" and isinstance(
-        statement, (CreateTable, DropTable, CreateIndex, DropIndex)
+        statement, ExecutableDDLElement
     ):
         connection._commit_impl()
         connection._begin_impl(connection._transaction)
