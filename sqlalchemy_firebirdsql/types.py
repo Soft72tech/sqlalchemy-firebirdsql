@@ -84,7 +84,7 @@ class FirebirdNVARCHAR(sqltypes.NVARCHAR):
 
 
 class FirebirdNumeric(sqltypes.Numeric):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdFLOAT(sqltypes.FLOAT):
@@ -104,7 +104,7 @@ class FirebirdREAL(sqltypes.REAL):
 
 
 class FirebirdDECIMAL(sqltypes.DECIMAL):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdDATE(sqltypes.DATE):

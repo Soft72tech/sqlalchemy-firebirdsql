@@ -1,9 +1,15 @@
 from sqlalchemy import literal_column
-from sqlalchemy.sql import compiler, elements, selectable, visitors
+from sqlalchemy.sql import compiler, elements, selectable, sqltypes, visitors
 
 
 class FirebirdCompiler(compiler.SQLCompiler):
     def render_bind_cast(self, type_, dbapi_type, sqltext) -> str:
+        if isinstance(dbapi_type, sqltypes.Numeric) and not isinstance(dbapi_type, sqltypes.Float) and dbapi_type.precision is None:
+            # Unconstrained Decimal binds must not acquire NUMERIC's default
+            # scale zero. DECFLOAT keeps fractional values and exponents.
+            if dbapi_type.scale is None:
+                return f"CAST({sqltext} AS DECFLOAT(34))"
+            dbapi_type = sqltypes.Numeric(38, dbapi_type.scale)
         type_sql = self.dialect.type_compiler_instance.process(
             dbapi_type, identifier_preparer=self.preparer
         )
@@ -67,6 +73,14 @@ class FirebirdCompiler(compiler.SQLCompiler):
 
         else:
             return f"SUBSTRING({s} FROM {start})"
+
+    def visit_truediv_binary(self, binary, operator, **kw):
+        # Integer / integer truncates in Firebird. Fixed NUMERIC casts can
+        # also truncate unknown-scale divisors or overflow large operands.
+        target = "DOUBLE PRECISION" if isinstance(binary.left.type, sqltypes.Float) else "DECFLOAT(34)"
+        left = self.process(binary.left, **kw)
+        right = self.process(binary.right, **kw)
+        return f"CAST({left} AS {target}) / CAST({right} AS {target})"
 
     def visit_mod_binary(self, binary, operator, **kw):
         return f"MOD({self.process(binary.left, **kw)}, {self.process(binary.right, **kw)})"

@@ -157,6 +157,8 @@ class FirebirdDialect(default.DefaultDialect):
     colspecs = {
         sqltypes.Integer: fbtypes.FirebirdInteger,
         sqltypes.BigInteger: fbtypes.FirebirdBIGINT,
+        sqltypes.Numeric: fbtypes.FirebirdNumeric,
+        sqltypes.DECIMAL: fbtypes.FirebirdDECIMAL,
         sqltypes.Float: fbtypes.FirebirdFLOAT,
         sqltypes.Double: fbtypes.FirebirdDOUBLE_PRECISION,
         sqltypes.ARRAY: fbtypes.FirebirdARRAY,
