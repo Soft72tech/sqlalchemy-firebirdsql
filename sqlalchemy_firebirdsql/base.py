@@ -57,8 +57,13 @@ class FirebirdInspector(reflection.Inspector):
 
 
 class FirebirdExecutionContext(default.DefaultExecutionContext):
-    # TODO: implement
-    ...
+    def fire_sequence(self, seq, type_):
+        return self._execute_scalar(
+            "SELECT NEXT VALUE FOR "
+            + self.identifier_preparer.format_sequence(seq)
+            + " FROM rdb$database",
+            type_,
+        )
 
 
 class FirebirdDialect(default.DefaultDialect):
@@ -185,6 +190,23 @@ class FirebirdDialect(default.DefaultDialect):
         tablename = self.denormalize_name(table_name)
 
         return connection.exec_driver_sql(has_table_query, (tablename,)).first() is not None
+
+    @reflection.cache
+    def has_sequence(
+        self,
+        connection: Connection,
+        sequence_name: str,
+        schema: Optional[str] = None,
+        **kw: Any,
+    ) -> bool:
+        query = """
+            SELECT 1
+            FROM rdb$generators
+            WHERE rdb$generator_name = ?
+              AND COALESCE(rdb$system_flag, 0) = 0
+        """
+        name = self.denormalize_name(sequence_name)
+        return connection.exec_driver_sql(query, (name,)).first() is not None
 
     @reflection.cache
     def get_sequence_names(

@@ -54,7 +54,7 @@ class FirebirdCompiler(compiler.SQLCompiler):
         return for_update_clause
 
     def visit_sequence(self, sequence, **kwargs) -> str:
-        return f"GEN_ID({self.preparer.format_sequence(sequence)}, 1)"
+        return f"NEXT VALUE FOR {self.preparer.format_sequence(sequence)}"
 
     def visit_substring_func(self, func, **kwargs) -> str:
         s = self.process(func.clauses.clauses[0], **kwargs)
