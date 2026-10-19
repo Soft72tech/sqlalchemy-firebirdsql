@@ -80,6 +80,8 @@ asyncio.run(main())
 | JSON, ARRAY | Полноценная поддержка **не заявлена** | JSON/ARRAY компилируются в BLOB; ARRAY содержит JSON-сериализацию. Это не нативный SQL ARRAY и не JSON query API |
 | UUID, Interval | Нативный UUID/полный timedelta-контракт не заявлены | При необходимости явно выбрать прикладное хранение/TypeDecorator и отдельно проверить round-trip |
 
+**Важно для больших Decimal:** дополнительно исправлен Decimal bind в локальном драйвере. Ранее коэффициент без проверки упаковывался в 64 бита и молча усекался: NUMERIC(38,12) мог возвращать неверные значения, включая отрицательные. Теперь коэффициенты вне signed INT64 или scale вне signed byte передаются точным decimal text; сервер преобразует их к целевому типу. Native isql и строковый bind подтвердили отсутствие ошибки хранения/чтения в проверенном случае. Numeric/TrueDiv с временно открытыми четырьмя precision gates: по **40 passed** sync/async. Это дополнительное локальное исправление драйвера, не гарантия опубликованного пакета; произвольная точность и произвольные Decimal special values не заявляются.
+
 ### Decimal и деление
 
 Оператор `/` в SQLAlchemy компилируется с повышением обоих операндов: обычно к **DECFLOAT(34)**, для float-левого операнда — к **DOUBLE PRECISION**. Это исключает целочисленное усечение и ошибочный CAST делителя к NUMERIC со scale=0. Но это не произвольная 38-значная точность результата деления.
@@ -185,6 +187,29 @@ Firebird 5 не поддерживает `CREATE TABLE ... AS SELECT`. Это с
 2. Неполная реализация или покрытие: server-side cursors, bulk RETURNING, JSON/ARRAY API, numeric precision/timezone/historic-варианты. Часть gates консервативна либо унаследована; комментарий requirements не является проверенным дефектом текущего драйвера.
 
 Например, оконные функции в Firebird есть, но RANGE-тесты закрыты; DateTime timezone проверяется, а общий Time timezone gate закрыт. Нельзя переносить статус всего класса на каждую его возможность. Исторические даты и все комбинации precision требуют отдельной проверки перед использованием.
+
+### Точечный аудит закрытых gates
+
+Диагностические прогоны **до исправления Decimal bind** с временным открытием выбранных requirements, без изменения штатных gates: **для каждого sync/async 30 passed, 8 skipped, 2 failed, 1419 deselected**. Это не новый полный suite и не замена baseline. Среди passed — **22 ранее пропускавшихся случая**, остальные 8 — уже открытые варианты деления.
+
+| Закрытый gate / сценарий | Результат sync и async | Вывод |
+|---|---|---|
+| inline CHECK reflection | 8 passed | Gate унаследован закрытым; проверенные inline/mixed варианты работают |
+| server_defaults | 4 passed; 3 expression-варианта остаются skipped | Literal/boolean/current timestamp не отсутствуют; expression defaults — отдельный gate |
+| column_collation_reflection | 1 passed | Проверенный collation отражается; gate консервативен |
+| duplicate_key_raises_integrity_error | 1 passed | Комментарий requirements об отсутствии IntegrityError устарел для проверенного драйвера |
+| precision_generic_float_type, literal_float_coercion | 2 passed | Старые комментарии про single precision не описывают текущие Float()/bind casts |
+| precision_numerics_retains_significant_digits | 1 passed | Проверенный Decimal `1.000` сохраняет scale |
+| precision_numerics_many_significant_digits | 1 failed; 2 TrueDiv-варианта passed | Общий gate скрывает и рабочие случаи, и реальную ошибку NUMERIC(38,12), описанную выше |
+| window_range, window_range_numeric | 2 passed | Firebird 5 поддерживает RANGE; проверенные integer/numeric frames работают |
+| window_range_non_numeric | 1 failed | timedelta компилируется в TIMESTAMP-offset; сервер требует числовой offset. Это несовместимость адаптации, не отсутствие DATE RANGE в Firebird |
+| supports_bitwise_xor | 1 passed | Компилятор уже переводит XOR в BIN_XOR; остальные 5 bitwise-вариантов в этой проверке не открывали |
+
+Firebird 5 reference §10.4 описывает RANGE для numeric/date/time/timestamp ORDER BY; §8.6 — BIN_* функции; §5.6.3 — CREATE OR ALTER VIEW, не тождественный SQLAlchemy CREATE OR REPLACE VIEW. Наличие серверного аналога не гарантирует готовность соответствующего API диалекта.
+
+Главный массовый skip — schema-параметризация: семь multi-reflection семейств пропускают именно по 42 schema-варианта (3 scope × 7 kind × 2 filter); это не отсутствие get_multi_* целиком. Отдельные 84 пропуска table-options закрыты `reflect_table_options`; возможный schema gate здесь перекрывается более ранним исключением. Поэтому непересекающееся распределение всех 555 на сервер/диалект нельзя получить простым сложением закрытых requirements.
+
+Штатные requirements в рамках аудита не менялись. Ошибка exact numeric затем локализована и исправлена в драйвере (см. раздел типов). Unit encoding/INT128/status-vector: **8 passed**. Полный повторный suite после исправления: sync/async по **902 passed, 555 skipped, 2 CTAS failed**. Следующие задачи: исправить timedelta RANGE translation, затем открывать подтверждённые gates отдельными изменениями с полным повторным suite.
 
 ## 8. Что проверено тестами, но не является production-функцией
 
