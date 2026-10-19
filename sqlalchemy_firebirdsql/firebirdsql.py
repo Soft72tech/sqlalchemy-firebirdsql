@@ -32,15 +32,14 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
     def _isolation_lookup(self):
         return {
             "READ COMMITTED LEGACY": 0,
-            "READ COMMITED": 1,
+            "READ COMMITTED": 1,
             "REPEATABLE READ": 2,
             "SNAPSHOT": 2,
             "SERIALIZABLE": 3,
-            "AUTOCOMMIT": 4,
         }
 
     def get_isolation_level_values(self, dbapi_conn: DBAPIConnection) -> list[IsolationLevel]:
-        return cast(list[IsolationLevel], list(self._isolation_lookup))
+        return cast(list[IsolationLevel], list(self._isolation_lookup) + ["AUTOCOMMIT"])
 
     def get_isolation_level(self, dbapi_connection: DBAPIConnection) -> IsolationLevel:
         return cast(
@@ -53,7 +52,7 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
     def set_isolation_level(self, dbapi_connection: DBAPIConnection, level: IsolationLevel):
         if level == "AUTOCOMMIT":
             dbapi_connection.set_autocommit(True)
-            dbapi_connection.set_isolation_level(self._isolation_lookup["READ COMMITED"])
+            dbapi_connection.set_isolation_level(self._isolation_lookup["READ COMMITTED"])
 
         else:
             dbapi_connection.set_autocommit(False)
@@ -61,7 +60,7 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
 
     def connect(self, *args, **kwargs):
         connection = super().connect(*args, **kwargs)
-        connection.set_autocommit(True)
+        connection.set_autocommit(False)
         return connection
 
     # def do_commit(self, dbapi_connection: DBAPIConnection):
@@ -85,13 +84,19 @@ class AsyncAdapt_firebirdsql_connection(AsyncAdapt_dbapi_connection):
     _cursor_cls = AsyncAdapt_firebirdsql_cursor
     _ss_cursor_cls = AsyncAdapt_firebirdsql_ss_cursor
 
-    # TODO: isolation level
+    def close(self):
+        # pyfirebirdsql closes its transport synchronously, unlike its cursors.
+        self._connection.close()
+
+    def ping(self):
+        # Pool reconnection belongs to SQLAlchemy, not the raw driver.
+        return await_only(self._connection.ping(reconnect=False))
 
     def set_autocommit(self, value):
-        self._connection.set_autocommit(value)
+        await_only(self._connection.set_autocommit(value))
 
     def set_isolation_level(self, value):
-        self._connection.set_isolation_level(value)
+        self._connection.isolation_level = int(value)
 
     @property
     def isolation_level(self):
@@ -99,7 +104,7 @@ class AsyncAdapt_firebirdsql_connection(AsyncAdapt_dbapi_connection):
 
     @isolation_level.setter
     def isolation_level(self, value):
-        self._connection.set_isolation_level(value)
+        self.set_isolation_level(value)
 
 
 class AsyncAdapt_firebirdsql_dbapi:
