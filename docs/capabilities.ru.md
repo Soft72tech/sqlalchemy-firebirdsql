@@ -29,6 +29,8 @@
 | Server-side streaming API | Не заявлено: async `supports_server_side_cursors=False` | Не рассчитывать на `AsyncConnection.stream()` как на поддержанный режим |
 | Полностью неблокирующий event loop | **Не подтверждено** | Закрытие соединения синхронное; в драйвере rowcount выполняет синхронный wire I/O |
 
+Опция SQLAlchemy `skip_autocommit_rollback=True` поддержана: диалект проверяет локальный autocommit flag без сетевого запроса и пропускает rollback только при включённом AUTOCOMMIT. Обычные транзакции по-прежнему откатываются; опция не означает автоматического commit обычных транзакций. Official AutocommitIsolationTest: sync/async по **11 passed**, unit detection/proxy/adapter/rollback: **24 passed**.
+
 Пример подключения к уже существующей БД, без создания схемы:
 
 ```python

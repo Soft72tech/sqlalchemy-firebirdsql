@@ -94,6 +94,10 @@ class Requirements(SuiteRequirements):
     # Isolation levels
 
     @property
+    def skip_autocommit_rollback(self):
+        return exclusions.open()
+
+    @property
     def autocommit(self):
         return exclusions.open()
 

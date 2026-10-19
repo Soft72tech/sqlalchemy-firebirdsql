@@ -49,6 +49,14 @@ class FirebirdDialect_firebirdsql(FirebirdDialect):
             ],
         )
 
+    def detect_autocommit_setting(self, dbapi_connection: DBAPIConnection) -> bool:
+        # Pool proxies and async adapters expose the raw driver connection.
+        # Read its local flag only: rollback suppression must not do wire I/O.
+        raw = getattr(dbapi_connection, "driver_connection", dbapi_connection)
+        if isinstance(raw, AsyncAdapt_dbapi_connection):
+            raw = raw._connection
+        return bool(raw._autocommit)
+
     def set_isolation_level(self, dbapi_connection: DBAPIConnection, level: IsolationLevel):
         if level == "AUTOCOMMIT":
             dbapi_connection.set_autocommit(True)
