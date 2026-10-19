@@ -18,7 +18,11 @@ def exercise(conn):
     conn.exec_driver_sql(f"CREATE TABLE {parent} (id INTEGER PRIMARY KEY)")
     conn.commit()
     try:
-        columns = ["s SMALLINT", "i INTEGER", "b BIGINT", "wide INT128"]
+        columns = [
+            "s SMALLINT", "i INTEGER", "b BIGINT", "wide INT128",
+            "stamp TIMESTAMP", "stamp_tz TIMESTAMP WITH TIME ZONE",
+            "clock TIME", "clock_tz TIME WITH TIME ZONE",
+        ]
         expected = {}
         for prefix, ddl, cls in (("n", "NUMERIC", types.NUMERIC), ("d", "DECIMAL", types.DECIMAL)):
             for precision in (4, 9, 18, 38):
@@ -38,6 +42,14 @@ def exercise(conn):
             for name in ("s", "i", "b", "wide"):
                 assert isinstance(reflected[name], types.Integer)
                 assert not isinstance(reflected[name], types.Numeric)
+            for name, cls, timezone in (
+                ("stamp", types.TIMESTAMP, False),
+                ("stamp_tz", types.TIMESTAMP, True),
+                ("clock", types.TIME, False),
+                ("clock_tz", types.TIME, True),
+            ):
+                assert isinstance(reflected[name], cls)
+                assert reflected[name].timezone is timezone
             fks = {fk["constrained_columns"][0]: fk["options"] for fk in inspect(conn).get_foreign_keys(child)}
             for name in ("default_fk", "noaction_fk"):
                 assert fks[name] == {}

@@ -1,8 +1,21 @@
 """Offline regressions for Firebird CAST syntax and UNION ordering."""
-from sqlalchemy import Date, Integer, column, func, select, table, union
+import pytest
+from sqlalchemy import Date, DateTime, Integer, Time, column, func, select, table, union
 
 from sqlalchemy_firebirdsql.firebirdsql import FirebirdDialect_firebirdsql
 from sqlalchemy_firebirdsql.types import FirebirdDATE
+
+
+@pytest.mark.parametrize("type_, expected", [
+    (DateTime(), "TIMESTAMP"),
+    (DateTime(timezone=True), "TIMESTAMP WITH TIME ZONE"),
+    (Time(), "TIME"),
+    (Time(timezone=True), "TIME WITH TIME ZONE"),
+])
+def test_temporal_types_preserve_timezone_and_cast_bindings(type_, expected):
+    dialect = FirebirdDialect_firebirdsql()
+    assert dialect.type_compiler_instance.process(type_) == expected
+    assert type_.dialect_impl(dialect).render_bind_cast
 
 
 def test_bind_cast_places_type_inside_parentheses():

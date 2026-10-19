@@ -30,16 +30,13 @@ from sqlalchemy_firebirdsql.identifier_preparer import FirebirdIdentifierPrepare
 class FirebirdTypeCompiler(compiler.GenericTypeCompiler):
     # TODO: implement
     def visit_datetime(self, type_: sqltypes.DateTime, **kw: Any) -> str:
-        return super().visit_TIMESTAMP(cast(sqltypes.TIMESTAMP, type_), **kw)
+        return self.visit_TIMESTAMP(type_, **kw)
 
-    # def visit_TIMESTAMP(self, type_: sqltypes.TIMESTAMP, **kw: Any) -> str:
-    #     precision = getattr(type_, "precision", None)
-    #     sqltype = "TIMESTAMP{precision} {timezone}".format(
-    #         precision="({})".format(precision) if precision is not None else "",
-    #         timezone="{} TIME ZONE".format("WITH" if type_.timezone else "WITHOUT"),
-    #     )
+    def visit_TIMESTAMP(self, type_, **kw):
+        return "TIMESTAMP WITH TIME ZONE" if type_.timezone else "TIMESTAMP"
 
-    #     return sqltype
+    def visit_TIME(self, type_, **kw):
+        return "TIME WITH TIME ZONE" if type_.timezone else "TIME"
 
     def visit_boolean(self, type_: sqltypes.Boolean, **kw: Any) -> str:
         return super().visit_boolean(type_, **kw)
@@ -133,9 +130,9 @@ class FirebirdDialect(default.DefaultDialect):
         "varying": fbtypes.FirebirdVARCHAR,
         "double": sqltypes.DOUBLE_PRECISION,
         "time": sqltypes.TIME,
-        "time with time zone": sqltypes.TIME(timezone=True),
+        "time with time zone": sqltypes.TIME,
         "timestamp": sqltypes.TIMESTAMP,
-        "timestamp with time zone": sqltypes.TIMESTAMP(timezone=True),
+        "timestamp with time zone": sqltypes.TIMESTAMP,
         "varbinary": fbtypes.FirebirdVARBINARY,
         "binary varying": fbtypes.FirebirdVARBINARY,
         "varchar": fbtypes.FirebirdVARCHAR,
@@ -148,9 +145,9 @@ class FirebirdDialect(default.DefaultDialect):
         sqltypes.BigInteger: sqltypes.BIGINT,
         sqltypes.ARRAY: fbtypes.FirebirdARRAY,
         sqltypes.BLOB: sqltypes.BLOB,
-        sqltypes.DateTime: sqltypes.TIMESTAMP,
+        sqltypes.DateTime: fbtypes.FirebirdTIMESTAMP,
         sqltypes.Date: fbtypes.FirebirdDATE,  # ?
-        sqltypes.Time: sqltypes.TIME,
+        sqltypes.Time: fbtypes.FirebirdTIME,
     }
 
     construct_arguments = [(reflection.sa_schema.Table, {"on_commit": None})]
