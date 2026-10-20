@@ -648,6 +648,11 @@ class Requirements(SuiteRequirements):
         return exclusions.closed()
 
     @property
+    def create_or_replace_view(self):
+        # Compiled as Firebird's CREATE OR ALTER VIEW.
+        return exclusions.open()
+
+    @property
     def views(self):
         """Target database must support VIEWs."""
 

@@ -96,6 +96,13 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
             table_options.append(f"ON COMMIT {on_commit}")
         return " " + ", ".join(table_options)
 
+    def visit_create_view(self, element, **kw):
+        text = super().visit_create_view(element, **kw)
+        if element.or_replace:
+            # Firebird 5 §5.6.3 preserves privileges and dependencies.
+            return 'CREATE OR ALTER' + text[len('CREATE OR REPLACE'):]
+        return text
+
     def visit_computed_column(self, generated, **kw):
         if generated.persisted is True:
             raise exc.CompileError(
