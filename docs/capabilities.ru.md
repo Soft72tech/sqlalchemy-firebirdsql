@@ -32,7 +32,7 @@
 | Pool ping | В async адаптер await-ит ping; переподключение оставлено pool | Поведение при длительном обрыве сети отдельно не сертифицировано |
 | Доступ к raw async driver connection | `(await connection.get_raw_connection()).driver_connection` возвращает `firebirdsql.aio.AsyncConnection`, не адаптер | Не закрывать и не использовать raw connection параллельно с SQLAlchemy; lifecycle остаётся под управлением engine/pool |
 | Server-side streaming API | Не заявлено: async `supports_server_side_cursors=False` | Не рассчитывать на `AsyncConnection.stream()` как на поддержанный режим |
-| Полностью неблокирующий event loop | **Не подтверждено** | Закрытие соединения синхронное. Обычный SQLAlchemy async cursor получает rowcount через await и кеширует его; raw driver `rowcount` остаётся синхронным (использовать `await cursor.get_rowcount()`) |
+| Полностью неблокирующий event loop | **Не подтверждено** | SQLAlchemy async close использует awaitable driver aclose; socket connect и отправка пакетов остаются синхронными. Обычный SQLAlchemy async cursor получает rowcount через await и кеширует его; raw driver `rowcount` остаётся синхронным (использовать `await cursor.get_rowcount()`) |
 
 Опция SQLAlchemy `skip_autocommit_rollback=True` поддержана: диалект проверяет локальный autocommit flag без сетевого запроса и пропускает rollback только при включённом AUTOCOMMIT. Обычные транзакции по-прежнему откатываются; опция не означает автоматического commit обычных транзакций. Official AutocommitIsolationTest: sync/async по **11 passed**, unit detection/proxy/adapter/rollback: **24 passed**.
 
@@ -63,6 +63,8 @@ asyncio.run(main())
 ```
 
 Для sync: `create_engine()` с `firebird+firebirdsql`, обычные `with`, без `await`. Путь БД относится к серверу Firebird, а не к файловой системе клиента. Для async поддержан и выбор async-класса через `create_async_engine()` с `firebird+firebirdsql`.
+
+**Async lifecycle:** SQLAlchemy close await-ит `raw.aclose()`; invalidate/terminate закрывает socket без wire I/O. Cancellation во время receive, timeout и EOF отбрасывают соединение, чтобы непрочитанный ответ не попал следующему запросу. Проверены dispose без sync response reads, cancellation ожидающего ответа, локальный socket shutdown и восстановление пула. Async receive временно переводит socket в nonblocking mode; connect и sends остаются синхронными. Legacy raw `close()` остаётся синхронным, для async используйте `await raw.aclose()`. Совместное параллельное использование raw connection не поддерживается.
 
 **Риск asyncio:** успешный suite не доказывает отсутствие блокировок event loop. Для обычного SQLAlchemy async cursor чтение ответа rowcount переведено на await и выполняется до закрытия курсора; свойство результата читает кеш без сети. Для executemany возвращается -1 (итог пакета неизвестен). Это не сертификация всего транспорта: особенно внимательно проверять задержки при закрытии, таймаутах и обрывах сети. Профиль latency, cancellation и многоконкурентную нагрузку нужно проверять на приложении отдельно.
 
@@ -139,7 +141,7 @@ async with engine.begin() as connection:
 # После выхода — явная граница транзакции перед дальнейшей работой.
 ```
 
-Этот фрагмент предполагает уже созданные `engine` и `metadata`; production-миграции/Alembic отдельно не сертифицированы.
+Этот фрагмент предполагает уже созданные `engine` и `metadata`. Минимальная opt-in [интеграция Alembic и локальная wheel-установка](local-release.ru.md) проверены отдельно: online create/drop table, add/drop/rename column через async run_sync. Полные production-миграции и autogenerate не сертифицированы.
 
 ## 6. Структура БД, индексы и reflection
 

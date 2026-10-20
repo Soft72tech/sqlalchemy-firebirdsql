@@ -9,6 +9,9 @@ dependencies = [
     "firebirdsql>=1.4.0"
 ]
 
+[project.optional-dependencies]
+alembic = ["alembic==1.18.4"]
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.3.0",
