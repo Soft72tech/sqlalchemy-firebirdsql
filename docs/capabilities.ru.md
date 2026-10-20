@@ -111,6 +111,7 @@ statement = select(literal(Decimal("15.7563"), Numeric(18, 4)))
 | SELECT, JOIN, подзапросы, EXISTS, обычный IN | Нативный SQL и компиляция диалекта | Непустые и пустые наборы проверяются suite; tuple IN отдельно не заявлен |
 | LIMIT/OFFSET, обычный fetch | Адаптация к ROWS | Для предсказуемой пагинации задавать ORDER BY; PERCENT/WITH TIES не заявлены |
 | UNION и ORDER BY | Нативный UNION; диалект заменяет подходящие ссылки на ordinal positions | Не все комбинации вложенных UNION с LIMIT/OFFSET включены в проверку |
+| Регулярные выражения | Нативный SQL `SIMILAR TO` через явное SQL-выражение | Это полное совпадение с SQL-pattern, не regexp search: `%`/`_` — wildcards, точка — обычный символ. SQLAlchemy `regexp_match`/`regexp_replace` явно дают CompileError; автоматического перевода нет. Sync/async семантика проверена отдельно |
 | CTE, оконные функции | Серверный SQL | RANGE для integer/numeric и temporal ordering проверен; некоторые CTE/DML-варианты закрыты requirements |
 | INSERT/UPDATE/DELETE RETURNING | Нативный RETURNING | Singleton BLOB outputs материализуются драйвером как bytes/text, не blob ID |
 | Executemany | Путь драйвера; в текущем aio — последовательные execute | Не обещает один сетевой запрос/пакет или ускоренный batch |
