@@ -1,4 +1,5 @@
 import importlib
+from collections import deque
 from typing import Type, cast
 
 from sqlalchemy import util
@@ -83,7 +84,36 @@ class AsyncAdapt_firebirdsql_ss_cursor(AsyncAdapt_dbapi_ss_cursor):
 
 
 class AsyncAdapt_firebirdsql_cursor(AsyncAdapt_dbapi_cursor):
-    __slots__ = ()
+    __slots__ = ('_rowcount',)
+
+    def __init__(self, adapt_connection):
+        super().__init__(adapt_connection)
+        self._rowcount = -1
+
+    @property
+    def rowcount(self):
+        # SQLAlchemy can read this outside the async/greenlet context and
+        # after soft close. Never perform wire I/O from this property.
+        return self._rowcount
+
+    async def _execute_async(self, operation, parameters):
+        self._rowcount = -1
+        async with self._adapt_connection._execute_mutex:
+            if parameters is None:
+                result = await self._cursor.execute(operation)
+            else:
+                result = await self._cursor.execute(operation, parameters)
+            if self._cursor.description and not self.server_side:
+                self._rows = deque(await self._cursor.fetchall())
+            self._rowcount = await self._cursor.get_rowcount()
+            return result
+
+    async def _executemany_async(self, operation, seq_of_parameters):
+        self._rowcount = -1
+        async with self._adapt_connection._execute_mutex:
+            # The driver exposes only the final statement's count, not the
+            # batch total. Report unknown rather than a misleading partial sum.
+            return await self._cursor.executemany(operation, seq_of_parameters)
 
 
 class AsyncAdapt_firebirdsql_connection(AsyncAdapt_dbapi_connection):

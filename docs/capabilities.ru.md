@@ -31,7 +31,7 @@
 | Commit, rollback, savepoints, autocommit | Серверные транзакции плюс адаптация lifecycle | Не заменяют прикладную стратегию повторов при конфликтах |
 | Pool ping | В async адаптер await-ит ping; переподключение оставлено pool | Поведение при длительном обрыве сети отдельно не сертифицировано |
 | Server-side streaming API | Не заявлено: async `supports_server_side_cursors=False` | Не рассчитывать на `AsyncConnection.stream()` как на поддержанный режим |
-| Полностью неблокирующий event loop | **Не подтверждено** | Закрытие соединения синхронное; в драйвере rowcount выполняет синхронный wire I/O |
+| Полностью неблокирующий event loop | **Не подтверждено** | Закрытие соединения синхронное. Обычный SQLAlchemy async cursor получает rowcount через await и кеширует его; raw driver `rowcount` остаётся синхронным (использовать `await cursor.get_rowcount()`) |
 
 Опция SQLAlchemy `skip_autocommit_rollback=True` поддержана: диалект проверяет локальный autocommit flag без сетевого запроса и пропускает rollback только при включённом AUTOCOMMIT. Обычные транзакции по-прежнему откатываются; опция не означает автоматического commit обычных транзакций. Official AutocommitIsolationTest: sync/async по **11 passed**, unit detection/proxy/adapter/rollback: **24 passed**.
 
@@ -63,7 +63,7 @@ asyncio.run(main())
 
 Для sync: `create_engine()` с `firebird+firebirdsql`, обычные `with`, без `await`. Путь БД относится к серверу Firebird, а не к файловой системе клиента. Для async поддержан и выбор async-класса через `create_async_engine()` с `firebird+firebirdsql`.
 
-**Риск asyncio:** успешный suite не доказывает отсутствие блокировок event loop. Особенно внимательно проверять задержки при rowcount, закрытии, таймаутах и обрывах сети. Профиль latency, cancellation и многоконкурентную нагрузку нужно проверять на приложении отдельно.
+**Риск asyncio:** успешный suite не доказывает отсутствие блокировок event loop. Для обычного SQLAlchemy async cursor чтение ответа rowcount переведено на await и выполняется до закрытия курсора; свойство результата читает кеш без сети. Для executemany возвращается -1 (итог пакета неизвестен). Это не сертификация всего транспорта: особенно внимательно проверять задержки при закрытии, таймаутах и обрывах сети. Профиль latency, cancellation и многоконкурентную нагрузку нужно проверять на приложении отдельно.
 
 ## 3. Типы данных и скрытые преобразования
 
