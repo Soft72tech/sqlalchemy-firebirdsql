@@ -18,4 +18,10 @@ patch --batch -p2 -d .venv-baseline/lib/python3.13/site-packages < docs/patches/
 
 The baseline environment currently has this patch applied. Reinstalling SQLAlchemy removes it. Reverse with the same command plus `-R`. Do not apply it twice.
 
-Verified locally against Firebird 5 using the existing baseline database: `TableViaSelectTest` sync and async each **7 passed, 24 skipped, 1485 deselected**. The two formerly failing CTAS cases now skip; existing view tests pass. Logs: `baseline/phase-ctas-guard-firebirdsql.log` and `baseline/phase-ctas-guard-firebirdsql_async.log`. Full suite and other database backends were not rerun. This is an explicit upstream-suite adaptation, not a driver defect fix.
+Verified locally against Firebird 5 using the existing baseline database: `TableViaSelectTest` sync and async each **7 passed, 24 skipped, 1485 deselected**. The two formerly failing CTAS cases now skip; existing view tests pass. Logs: `baseline/phase-ctas-guard-firebirdsql.log` and `baseline/phase-ctas-guard-firebirdsql_async.log`. Full official suite subsequently passed for both sync and async: each **1017 passed, 499 skipped**, no failures/errors (139.48 / 144.55 s). Logs: `baseline/phase-ctas-guard-full-firebirdsql.log` and `baseline/phase-ctas-guard-full-firebirdsql_async.log`. Command from the dialect repository, repeated with `DRIVER=firebirdsql` and `DRIVER=firebirdsql_async`:
+
+```sh
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 timeout -k 2 240 .venv-baseline/bin/python -m pytest test/test_official_suite.py --maxfail=0 --dburi "firebird+$DRIVER://SYSDBA:root@127.0.0.1:13050//var/lib/firebird/data/phase1.fdb" --tb=short
+```
+
+Other database backends were not rerun. This is an explicit upstream-suite adaptation, not a driver defect fix.
