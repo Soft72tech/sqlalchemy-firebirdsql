@@ -1644,7 +1644,7 @@ class Requirements(SuiteRequirements):
     @property
     def computed_columns_virtual(self):
         "Supports computed columns with `persisted=False`"
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def computed_columns_default_persisted(self):
@@ -1656,7 +1656,7 @@ class Requirements(SuiteRequirements):
     def computed_columns_reflect_persisted(self):
         """If persistence information is returned by the reflection of
         computed columns"""
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def supports_distinct_on(self):

@@ -737,7 +737,7 @@ class FirebirdDialect(default.DefaultDialect):
                 # ordinary columns; identity metadata is the positive signal.
                 **({"autoincrement": True} if row.identity_type is not None else {}),
                 comment=row.description,
-                **({"computed": ReflectedComputed(sqltext=row.computed_source)}
+                **({"computed": ReflectedComputed(sqltext=row.computed_source, persisted=False)}
                    if row.computed_source else {}),
                 **({"identity": ReflectedIdentity(
                     always=row.identity_type == 0,

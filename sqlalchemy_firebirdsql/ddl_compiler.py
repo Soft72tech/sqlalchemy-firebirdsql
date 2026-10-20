@@ -97,11 +97,10 @@ class FirebirdDDLCompiler(compiler.DDLCompiler):
         return " " + ", ".join(table_options)
 
     def visit_computed_column(self, generated, **kw):
-        if generated.persisted is not None:
+        if generated.persisted is True:
             raise exc.CompileError(
-                "Firebird computed columns do not support a persistence "
-                "method setting; set the 'persisted' flag to None for "
-                "Firebird support."
+                "Firebird computed columns are virtual; persisted=True "
+                "is not supported. Use persisted=False or None."
             )
 
         return "GENERATED ALWAYS AS (%s)" % self.sql_compiler.process(
