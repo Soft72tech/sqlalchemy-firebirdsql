@@ -360,7 +360,8 @@ class Requirements(SuiteRequirements):
         This is known to fail on SQLite.
 
         """
-        return exclusions.closed()
+        # Firebird 5 reference §6.1.9 permits parenthesized query primaries.
+        return exclusions.open()
 
     @property
     def parens_in_union_contained_select_wo_limit_offset(self):
@@ -374,7 +375,8 @@ class Requirements(SuiteRequirements):
         creates an additional subquery.
 
         """
-        return exclusions.closed()
+        # Firebird 5 reference §6.1.9 permits ORDER BY inside query primaries.
+        return exclusions.open()
 
     @property
     def boolean_col_expressions(self):
@@ -1413,8 +1415,9 @@ class Requirements(SuiteRequirements):
 
         """
 
-        # Firebird does not support ORDER BY alias in UNIONs.
-        return exclusions.closed()
+        # The compiler converts matching output columns to ordinal positions
+        # as required by Firebird 5 reference §6.1.9.
+        return exclusions.open()
 
     @property
     def order_by_label_with_expression(self):

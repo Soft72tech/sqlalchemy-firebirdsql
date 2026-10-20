@@ -5,6 +5,16 @@ from sqlalchemy.sql import compiler, elements, selectable, sqltypes, visitors
 
 
 class FirebirdCompiler(compiler.SQLCompiler):
+    def visit_select(self, select_stmt, **kwargs):
+        text = super().visit_select(select_stmt, **kwargs)
+        if (kwargs.get('compound_index') is not None
+                and select_stmt._has_row_limiting_clause):
+            # Firebird 5 §6.1.9 allows OFFSET/FETCH, but not ROWS, in a
+            # parenthesized UNION branch. A derived table permits our ROWS
+            # pagination, including expressions unsupported by OFFSET/FETCH.
+            return f"SELECT * FROM ({text}) AS fb_union_branch"
+        return text
+
     def visit_over(self, over, **kw):
         frame = over.range_
         # FrameClause is new in SQLAlchemy 2.1; leave 2.0 tuple frames alone.

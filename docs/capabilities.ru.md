@@ -8,7 +8,7 @@
 
 **Важно о зависимостях:** результаты получены с локально исправленным драйвером. Обычная установка `firebirdsql>=1.4.0` не гарантирует наличие этих исправлений. Для воспроизведения нужен соответствующий исходный код; публикация исправленной версии и установка из PyPI отдельно не проверялись.
 
-Итог полного SQLAlchemy official suite для каждого из sync/async: **1017 passed, 497 skipped, 2 failed, 0 errors**. Оба failures — попытки CTAS, неподдерживаемого Firebird 5. Дополнительные новые регрессионные проверки драйвера и диалекта: **180 passed** (включая live temporal RANGE, bitwise, national strings, table options и RETURNING fallback). Это не сертификация всех ORM-сценариев, миграций, производительности или отказоустойчивости.
+Актуальный полный SQLAlchemy official suite для каждого sync/async: **1020 passed, 496 skipped, 0 failures/errors**. Применён явный [upstream CTAS capability patch](patches/README.md): два неподдерживаемых CTAS случая теперь пропускаются по существующему requirement; это не исправление драйвера и не поддержка CTAS. UNION branches с pagination оборачиваются в derived table для допустимого использования ROWS (Firebird 5 §6.1.9); открыты три compound-select gates, official CompoundSelectTest — по 7 passed. Дополнительные регрессии `test_compound_pagination.py`: 19 passed, включая sync/async cached rebinding, expression limit, offset-only, FETCH и result keys. Дополнительные новые регрессионные проверки драйвера и диалекта: **180 passed** (включая live temporal RANGE, bitwise, national strings, table options и RETURNING fallback). Это не сертификация всех ORM-сценариев, миграций, производительности или отказоустойчивости.
 
 В таблицах:
 
