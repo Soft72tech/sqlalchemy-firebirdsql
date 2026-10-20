@@ -25,12 +25,12 @@ uv pip freeze --python sqlalchemy-firebirdsql/baseline/release-venv/bin/python \
 
 ## Alembic (опционально)
 
-Установите Alembic отдельно и добавьте в migration `env.py`:
+Установите extra `sqlalchemy-firebirdsql[alembic]` из своей локальной сборки либо Alembic==1.18.4 отдельно и добавьте в migration `env.py`:
 
 ```python
 import sqlalchemy_firebirdsql.alembic
 ```
 
-Для async engine используйте стандартный `await connection.run_sync(do_run_migrations)`. Модуль регистрирует Firebird implementation с transactional DDL. Проверены online create/drop table, add/drop column и rename column. Firebird 5 §5.4.2 использует `ADD name`, `DROP name`, `ALTER COLUMN old TO new`, а не общий Alembic SQL. Rename table, ADD IF NOT EXISTS и DROP IF EXISTS явно отклоняются. Полная поддержка autogenerate, batch migrations, comments, identity alterations и всех constraint/type изменений не сертифицирована.
+Для async engine используйте стандартный `await connection.run_sync(do_run_migrations)`. Модуль регистрирует Firebird implementation с transactional DDL. Проверены online create/drop table, add/drop column и rename column, включая rollback добавления столбца. Firebird 5 §5.4.2 использует `ADD name`, `DROP name`, `ALTER COLUMN old TO new`, а не общий Alembic SQL. Rename table, ADD IF NOT EXISTS и DROP IF EXISTS явно отклоняются. Полная поддержка autogenerate, batch migrations, comments, identity alterations и всех constraint/type изменений не сертифицирована.
 
 ORM smoke проверяет AsyncSession CRUD, generated key через явный `Identity()`, savepoint rollback и полный rollback. Для генерируемого PK объявляйте `mapped_column(Identity(), primary_key=True)`: обычный integer PK без явного Identity не создаёт серверный генератор.
