@@ -30,6 +30,7 @@
 | Async engine | `firebirdsql.aio` через адаптер SQLAlchemy и greenlet-мост | Это не запуск всего sync-драйвера в thread pool; для async нужен greenlet |
 | Commit, rollback, savepoints, autocommit | Серверные транзакции плюс адаптация lifecycle | Не заменяют прикладную стратегию повторов при конфликтах |
 | Pool ping | В async адаптер await-ит ping; переподключение оставлено pool | Поведение при длительном обрыве сети отдельно не сертифицировано |
+| Доступ к raw async driver connection | `(await connection.get_raw_connection()).driver_connection` возвращает `firebirdsql.aio.AsyncConnection`, не адаптер | Не закрывать и не использовать raw connection параллельно с SQLAlchemy; lifecycle остаётся под управлением engine/pool |
 | Server-side streaming API | Не заявлено: async `supports_server_side_cursors=False` | Не рассчитывать на `AsyncConnection.stream()` как на поддержанный режим |
 | Полностью неблокирующий event loop | **Не подтверждено** | Закрытие соединения синхронное. Обычный SQLAlchemy async cursor получает rowcount через await и кеширует его; raw driver `rowcount` остаётся синхронным (использовать `await cursor.get_rowcount()`) |
 

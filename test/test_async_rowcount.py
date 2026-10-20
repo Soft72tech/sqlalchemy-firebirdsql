@@ -94,7 +94,10 @@ def test_live_async_rowcount_never_uses_sync_response(monkeypatch):
                 await conn.execute(text(f'CREATE TABLE {table} (id INTEGER)'))
                 await conn.commit()
                 try:
-                    raw = (await conn.get_raw_connection()).dbapi_connection._connection
+                    proxy = await conn.get_raw_connection()
+                    raw = proxy.driver_connection
+                    assert raw is proxy.dbapi_connection.driver_connection
+                    assert raw is proxy.dbapi_connection._connection
                     with monkeypatch.context() as patch:
                         patch.setattr(raw, '_op_response', forbidden)
                         for value in range(3):

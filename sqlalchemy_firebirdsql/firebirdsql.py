@@ -186,6 +186,9 @@ class FirebirdDialectAsync_firebirdsql(FirebirdDialect_firebirdsql):
 
     execution_ctx_cls = FirebirdExecutionContextAsync
 
+    def get_driver_connection(self, connection):
+        return connection._connection
+
     @classmethod
     def import_dbapi(cls):
         return AsyncAdapt_firebirdsql_dbapi(importlib.import_module("firebirdsql.aio"))
