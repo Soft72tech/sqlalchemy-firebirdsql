@@ -173,6 +173,7 @@ class FirebirdDialect(default.DefaultDialect):
 
     # TODO: all colspecs
     colspecs = {
+        sqltypes.Boolean: fbtypes.FirebirdBOOLEAN,
         sqltypes.Integer: fbtypes.FirebirdInteger,
         sqltypes.BigInteger: fbtypes.FirebirdBIGINT,
         sqltypes.Enum: fbtypes.FirebirdEnum,

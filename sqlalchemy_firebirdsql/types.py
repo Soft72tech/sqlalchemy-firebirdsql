@@ -175,7 +175,7 @@ class FirebirdINT128(sqltypes.Integer):
 
 
 class FirebirdBOOLEAN(sqltypes.BOOLEAN):
-    pass
+    render_bind_cast = True
 
 
 class FirebirdLargeBinary(sqltypes.LargeBinary):

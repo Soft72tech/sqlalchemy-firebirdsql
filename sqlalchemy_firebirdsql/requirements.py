@@ -382,7 +382,7 @@ class Requirements(SuiteRequirements):
     def boolean_col_expressions(self):
         """Target database must support boolean expressions as columns"""
 
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def nullable_booleans(self):
@@ -1038,8 +1038,7 @@ class Requirements(SuiteRequirements):
         """target dialect supports representation of Python
         datetime.datetime() objects with historic (pre 1970) values."""
 
-        # Closed due firebird-driver bug: https://github.com/FirebirdSQL/python3-driver/issues/34
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def date(self):
@@ -1060,8 +1059,7 @@ class Requirements(SuiteRequirements):
         """target dialect supports representation of Python
         datetime.datetime() objects with historic (pre 1970) values."""
 
-        # Closed due firebird-driver bug: https://github.com/FirebirdSQL/python3-driver/issues/34
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def time(self):
@@ -1409,7 +1407,7 @@ class Requirements(SuiteRequirements):
         case either.
 
         """
-        return exclusions.closed()
+        return exclusions.open()
 
     @property
     def order_by_col_from_union(self):
