@@ -93,6 +93,12 @@ def test_alembic_upgrade_downgrade_over_async_connection():
             async with engine.begin() as conn:
                 await conn.run_sync(upgrade)
             try:
+                # FirebirdImpl advertises transactional DDL: prove rollback.
+                async with engine.connect() as conn:
+                    await conn.run_sync(change)
+                    await conn.rollback()
+                    columns = await conn.run_sync(lambda sync: inspect(sync).get_columns(name))
+                    assert [column['name'] for column in columns] == ['id']
                 for action in (change, rename, check, downgrade):
                     async with engine.begin() as conn:
                         await conn.run_sync(action)
