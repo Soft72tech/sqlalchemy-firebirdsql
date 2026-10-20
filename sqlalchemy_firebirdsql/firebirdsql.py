@@ -122,9 +122,17 @@ class AsyncAdapt_firebirdsql_connection(AsyncAdapt_dbapi_connection):
     _cursor_cls = AsyncAdapt_firebirdsql_cursor
     _ss_cursor_cls = AsyncAdapt_firebirdsql_ss_cursor
 
+    def _handle_exception(self, error):
+        if isinstance(error, OSError):
+            self._connection.terminate()
+            raise self.dbapi.OperationalError(str(error)) from error
+        super()._handle_exception(error)
+
     def close(self):
-        # pyfirebirdsql closes its transport synchronously, unlike its cursors.
-        self._connection.close()
+        await_only(self._connection.aclose())
+
+    def terminate(self):
+        self._connection.terminate()
 
     def ping(self):
         # Pool reconnection belongs to SQLAlchemy, not the raw driver.
@@ -188,6 +196,15 @@ class FirebirdDialectAsync_firebirdsql(FirebirdDialect_firebirdsql):
 
     def get_driver_connection(self, connection):
         return connection._connection
+
+    def do_terminate(self, dbapi_connection):
+        dbapi_connection.terminate()
+
+    def is_disconnect(self, e, connection, cursor):
+        raw = getattr(connection, 'driver_connection', connection)
+        if raw is not None and raw.is_disconnect():
+            return True
+        return isinstance(e, (OSError, self.loaded_dbapi.InterfaceError))
 
     @classmethod
     def import_dbapi(cls):
