@@ -1,0 +1,20 @@
+--- a/lib/sqlalchemy/testing/suite/test_table_via_select.py
++++ b/lib/sqlalchemy/testing/suite/test_table_via_select.py
+@@ -109,7 +109,7 @@
+         connection.commit()
+ 
+     @testing.combinations(
+-        ("plain", False, False, False),
++        ("plain", False, False, False, testing.requires.create_table_as),
+         (
+             "use_temp",
+             False,
+@@ -118,7 +118,7 @@
+             testing.requires.create_temp_table_as,
+         ),
+         ("use_schema", True, False, False, testing.requires.schemas),
+-        ("plain", False, False, False),
++        ("plain", False, False, False, testing.requires.create_table_as),
+         ("use_temp", False, True, True, testing.requires.temporary_views),
+         ("use_schema", True, False, True, testing.requires.schemas),
+         argnames="use_schemas,use_temp,use_view",
