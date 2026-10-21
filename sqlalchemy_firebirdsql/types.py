@@ -208,6 +208,13 @@ class FirebirdNumericInterval(sqltypes.Numeric):
     pass
 
 
+class FirebirdJSON(sqltypes.JSON):
+    """JSON serialized into Firebird BLOB storage (not native SQL JSON)."""
+
+    __visit_name__ = "JSON"
+
+
+
 class FirebirdARRAY(sqltypes.ARRAY):
     def literal_processor(self, dialect: Dialect):
         def process(value: list):

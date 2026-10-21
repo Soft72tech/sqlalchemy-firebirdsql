@@ -92,6 +92,11 @@ class FirebirdExecutionContext(default.DefaultExecutionContext):
 
 class FirebirdDialect(default.DefaultDialect):
     name = "firebird"
+    supports_native_json = False
+    def __init__(self, json_serializer=None, json_deserializer=None, **kwargs):
+        super().__init__(**kwargs)
+        self._json_serializer = json_serializer
+        self._json_deserializer = json_deserializer
 
     max_identifier_length = 63
 
@@ -184,6 +189,7 @@ class FirebirdDialect(default.DefaultDialect):
         sqltypes.Float: fbtypes.FirebirdFLOAT,
         sqltypes.Double: fbtypes.FirebirdDOUBLE_PRECISION,
         sqltypes.ARRAY: fbtypes.FirebirdARRAY,
+        sqltypes.JSON: fbtypes.FirebirdJSON,
         sqltypes.BLOB: sqltypes.BLOB,
         sqltypes.DateTime: fbtypes.FirebirdTIMESTAMP,
         sqltypes.Date: fbtypes.FirebirdDATE,  # ?
