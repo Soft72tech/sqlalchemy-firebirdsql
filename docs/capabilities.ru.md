@@ -2,6 +2,8 @@
 
 Практическое руководство для разработчиков приложений. Описывает текущую разработку, а не гарантии опубликованного пакета.
 
+**Актуальная сводка:** [реализованные функции, частичная поддержка и оставшиеся работы](implementation-status.ru.md) для коммитов dialect 5470363 / driver 3258106. Ниже сохранены исторические результаты и замечания предыдущих этапов; они не заменяют текущую сводку.
+
 Вычисляемые столбцы поддерживают `Computed(..., persisted=False)` и значение по умолчанию `None`; оба создают virtual computed column. Reflection возвращает `persisted=False`. `persisted=True` отклоняется при компиляции: stored computed columns не реализованы сервером. Unit/live DDL, reflection и пересчёт после UPDATE: 8 passed для sync/async.
 
 В SQLAlchemy 2.1 `CreateView(..., or_replace=True)` компилируется в Firebird `CREATE OR ALTER VIEW`, сохраняющий права и зависимости существующего VIEW (§5.6.3). Официальная view-группа: sync/async по 8 passed, 23 skipped; 4 unit-проверки DDL. Это не поддержка materialized/temporary views.
