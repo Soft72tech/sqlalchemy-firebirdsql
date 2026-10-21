@@ -85,10 +85,12 @@ asyncio.run(main())
 | Text, UnicodeText, CLOB | Нативный BLOB SUB_TYPE TEXT | Длина Text(255) не ограничивает BLOB до 255 символов |
 | Date/Time/DateTime | Нативные типы плюс bind casts | Точность времени Firebird — 100 мкс, не произвольные микросекунды Python |
 | DateTime(timezone=True) | TIMESTAMP WITH TIME ZONE | Проверенные temporal-тесты проходят; правила зон зависят и от сервера |
-| Time(timezone=True) | DDL умеет WITH TIME ZONE; общий time-zone test закрыт requirements | Не считать произвольные timezone-aware time полностью проверенными |
+| Time(timezone=True) | TIME WITH TIME ZONE; SELECT roundtrip UTC проверен sync/async, включая NULL, 100 мкс и повторные cached binds | Fixed-offset bind `datetime.time(..., tzinfo=timezone(timedelta(hours=5, minutes=30)))` вызывает необёрнутый `KeyError('UTC+05:30')` в драйвере; общий gate остаётся закрыт |
 | Enum | Ненативный SQLAlchemy Enum поверх строк | Серверного ENUM нет; ограничения и validation задавать явно |
 | JSON, ARRAY | Полноценная поддержка **не заявлена** | JSON/ARRAY компилируются в BLOB; ARRAY содержит JSON-сериализацию. Это не нативный SQL ARRAY и не JSON query API |
 | UUID, Interval | Нативный UUID/полный timedelta-контракт не заявлены | При необходимости явно выбрать прикладное хранение/TypeDecorator и отдельно проверить round-trip |
+
+**TIME timezone:** `test/test_time_timezone.py` проверяет UTC-путь и явно ожидает ошибку неподдерживаемого fixed-offset bind; это не поддержка произвольных смещений. После ошибки проверен повторный UTC-запрос на том же соединении. Named-zone TIME не сертифицирован: текущие encoder/decoder драйвера используют сегодняшнюю дату, тогда как Firebird 5 задаёт опорную дату 2020-01-01 для правил именованных зон TIME (Language Reference, раздел 3.4). Драйвер и requirements в этой проверке не изменялись; запись в таблицу и reflection отдельно не проверялись.
 
 **Важно для больших Decimal:** дополнительно исправлен Decimal bind в локальном драйвере. Ранее коэффициент без проверки упаковывался в 64 бита и молча усекался: NUMERIC(38,12) мог возвращать неверные значения, включая отрицательные. Теперь коэффициенты вне signed INT64 или scale вне signed byte передаются точным decimal text; сервер преобразует их к целевому типу. Native isql и строковый bind подтвердили отсутствие ошибки хранения/чтения в проверенном случае. Numeric/TrueDiv с временно открытыми четырьмя precision gates: по **40 passed** sync/async. Это дополнительное локальное исправление драйвера, не гарантия опубликованного пакета; произвольная точность и произвольные Decimal special values не заявляются.
 

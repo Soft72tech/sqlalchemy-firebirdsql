@@ -18,6 +18,8 @@ from sqlalchemy_firebirdsql.base import FirebirdDialect, FirebirdExecutionContex
 class FirebirdDialect_firebirdsql(FirebirdDialect):
     driver: str = "firebirdsql"
     supports_statement_cache: bool = True
+    # The current sync driver sums per-execution counts in executemany().
+    supports_sane_multi_rowcount = True
 
     default_isolation_level: IsolationLevel | None = "READ COMMITTED"
 
@@ -187,6 +189,9 @@ class FirebirdExecutionContextAsync(FirebirdExecutionContext): ...
 
 
 class FirebirdDialectAsync_firebirdsql(FirebirdDialect_firebirdsql):
+    # The async adapter deliberately reports unknown for executemany batches.
+    supports_sane_multi_rowcount = False
+
     is_async = True
 
     supports_statement_cache = True

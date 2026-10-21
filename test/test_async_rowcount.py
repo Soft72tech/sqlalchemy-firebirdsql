@@ -11,7 +11,15 @@ from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from sqlalchemy_firebirdsql.firebirdsql import AsyncAdapt_firebirdsql_cursor
+from sqlalchemy_firebirdsql.firebirdsql import (
+    AsyncAdapt_firebirdsql_cursor, FirebirdDialect_firebirdsql,
+    FirebirdDialectAsync_firebirdsql,
+)
+
+
+def test_multi_rowcount_capability_matches_adapter_contract():
+    assert FirebirdDialect_firebirdsql().supports_sane_multi_rowcount is True
+    assert FirebirdDialectAsync_firebirdsql().supports_sane_multi_rowcount is False
 
 
 class RawCursor:

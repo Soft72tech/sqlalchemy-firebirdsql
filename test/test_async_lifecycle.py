@@ -123,16 +123,20 @@ def test_socket_receive_yields_to_event_loop():
     async def run():
         reader, writer = socket.socketpair()
         stream = object.__new__(AsyncSocketStream)
+        reader.setblocking(False)
         stream._sock = reader
         stream.loop = asyncio.get_running_loop()
         stream.read_translator = None
+        stream._last_send_task = None
+        stream._decompressor = None
+        stream._buf = b''
         try:
             task = asyncio.create_task(stream.async_recv(1))
             await asyncio.sleep(0.01)
             assert not task.done()
             writer.send(b'x')
             assert await asyncio.wait_for(task, 1) == b'x'
-            assert reader.getblocking()
+            assert not reader.getblocking()
         finally:
             reader.close()
             writer.close()
